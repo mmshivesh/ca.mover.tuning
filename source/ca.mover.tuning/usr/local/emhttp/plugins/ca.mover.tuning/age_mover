@@ -363,9 +363,13 @@ totalsizeFilelist() {
         CUSTOMLINEDATE=$(echo "$CUSTOMLINE" | sed -n 's/\([^;]*\).*/\1/p')
         CUSTOMLINETHRESH=$(echo "$CUSTOMLINE" | sed -n 's/^[^;]*;\([^;]*\);.*/\1/p')
 
-        ((TOTALCACHESIZE += $CUSTOMLINESIZE))
+	# Do not add the size of an Hardlink (hardlinks have all the same date). Bordel effect: if 2 files have exactly the same date, shall not happen, if so add previous size)
+	if [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
+		# Append file size to total cache size
+        	((TOTALCACHESIZE += $CUSTOMLINESIZE))
+	fi
 
-	    # Check if total cache size exceeds the threshold and autoage is selected. *
+	# Check if total cache size exceeds the threshold and autoage is selected. *
         # Date has also to be different from previous file to prevent breaking hardlinks
         if [ "$TOTALCACHESIZE" -ge "$CUSTOMLINETHRESH" ] && [ "$AGE" -eq -1 ] && [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
             mvlogger "Threshold met, removing $CUSTOMLINE"
