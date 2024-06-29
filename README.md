@@ -10,7 +10,6 @@ This is a simple [Unraid](https://unraid.net/) plugin that will let you fine-tun
 - Optional ability to completely disable the scheduled runs of mover
 - Manually executed runs of mover ("Move Now" button) can either follow the rules for schedules, or always move all files
 
-This plugin was originaly developped by [Squid](https://github.com/Squidly271), [Castcore](https://github.com/Castcore), [Hugenbdd](https://github.com/hugenbd), with contribution from [Dphelan](https://github.com/dphelan), and [Davendsai](https://github.com/davendesai).
 V2 merge all [pull requests](https://github.com/hugenbd/ca.mover.tuning/pulls) from [V1 repo](https://github.com/hugenbd/ca.mover.tuning) and will add several feature, as for example automatic age threshold
 
 ## Installation
@@ -29,4 +28,4 @@ See the [_Mover Tuning_ thread on the Unraid support forum](https://forums.unrai
 
 ## Thanks
 
-This was originally created by [Squid](https://github.com/Squidly271) and updated by [hugenbd](https://github.com/hugenbd/ca.mover.tuning), with contributions by [Castcore](https://github.com/Castcore) and [Swarles](https://github.com/hugenbd/ca.mover.tuning/commit/64e06e91bd83431d768346e4d8158f7be039564e).
+This was originally created by [Squid](https://github.com/Squidly271) and updated by [hugenbd](https://github.com/hugenbd/ca.mover.tuning), with contributions by [Castcore](https://github.com/Castcore), [Swarles](https://github.com/hugenbd/ca.mover.tuning/commit/64e06e91bd83431d768346e4d8158f7be039564e), [Dphelan](https://github.com/dphelan) and [Davendsai](https://github.com/davendesai).
