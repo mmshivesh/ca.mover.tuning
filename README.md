@@ -17,6 +17,7 @@ V2 merge all [pull requests](https://github.com/hugenbd/ca.mover.tuning/pulls) f
 -- Added Automatic age threshold
 -- Added [Minor spelling corrections & README](https://github.com/dphelan/ca.mover.tuning/tree/spelling-corrections) from [Dphelan](https://github.com/dphelan)
 -- Added [Merge share skipfiletypes](https://github.com/davendesai/unraid-mover-tuning/tree/merge-share-skipfiletypes) from [Davendsai](https://github.com/davendesai)
+-- Added [Update Mover.tuning.page](https://github.com/Squidly271/ca.mover.tuning/tree/patch-2)
 
 ## Installation
 
