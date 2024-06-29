@@ -98,6 +98,7 @@ Move files off cache based on age?
 
 Move files that are greater than this many days old:
 : <select name="daysold" size="1" class='narrow myage' <?=$ageDisabled?>>
+<?=mk_option($cfg['daysold'], -1, "Auto")?>
 <?=mk_option($cfg['daysold'], 1, "1")?>
 <?=mk_option($cfg['daysold'], 2, "2")?>
 <?=mk_option($cfg['daysold'], 3, "3")?>
@@ -112,7 +113,7 @@ Move files that are greater than this many days old:
 <?endfor;?>
 </select>
 
-> Select the number of days old a file has to be in order to move (Up To 1 year).
+> Select the number of days old a file has to be in order to move (Up To 1 year). Auto will move from the oldest to the most recent, until threshold is met.
 
 Use CTIME:
 : <select name="ctime" size='1' class='narrow myage' <?=$ageDisabled?> >

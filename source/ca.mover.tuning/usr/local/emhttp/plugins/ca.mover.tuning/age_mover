@@ -46,9 +46,9 @@ AFTERSCRIPT=""
 FINDSTR=""
 SIZEFINDSTR=""
 
-FILECOUNT=0
 TOTALCACHESIZE=0
 REMAININGCACHESIZE=0
+CACHESIZETHRESH=0
 TOTALARRAYSIZE=0
 REMAININGARRAYSIZE=0
 NOW=$(date +"%FT%H%M%S")
@@ -139,16 +139,26 @@ customFilelist() {
     ###Start looping through filelist one line at a time
     touch $CUSTOM_MOVER_FILELIST
     while read CACHEFILEPATH; do
-        CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
-
-        if [ -d "$CACHEFILEPATH" ]; then
-            mvlogger "It's a Directory send to directory list $CUSTOM_MOVER_DIRECTORYLIST"
+        if [[ $CACHEFILEPATH == ☐* ]]; then
+            CACHESIZETHRESH=$(echo "$CACHEFILEPATH" | sed -n 's/.*;\(.*\)/\1/p')
+            mvlogger "CACHESIZETHRESH: $CACHESIZETHRESH"
+        elif [ -d "$CACHEFILEPATH" ]; then
+            mvlogger "$CACHEFILEPATH is a Directory send to directory list $CUSTOM_MOVER_DIRECTORYLIST"
             echo "$CACHEFILEPATH" >>$CUSTOM_MOVER_DIRECTORYLIST
-        else
-            ((FILECOUNT++))
-            echo "$FILECOUNT;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$CUSTOM_MOVER_FILELIST
+        elif [[ $CACHEFILEPATH != ☐* ]]; then
+            CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
+            if [ "$CTIMEA" == "yes" ]; then
+                CACHEFILEDATE=$(stat -c%W "$CACHEFILEPATH")
+            else
+                CACHEFILEDATE=$(stat -c%Y "$CACHEFILEPATH")
+            fi	
+            mvlogger "$CACHEFILEPATH is a file sent to file list $CUSTOM_MOVER_FILELIST"
+            echo "$CACHEFILEDATE;$CACHESIZETHRESH;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$CUSTOM_MOVER_FILELIST
         fi
     done <$MOVER_FILELIST
+
+    ## Sorting custom file by date
+    sort -t ';' -k 1n "$CUSTOM_MOVER_FILELIST" -o "$CUSTOM_MOVER_FILELIST"
 }
 
 loopcustomFilelist() {
@@ -341,22 +351,36 @@ customArrayFilelist() {
 }
 
 totalsizeFilelist() {
-    #Loop throug the custom mover filelist and add up all the sizes for each entry.
-
+    #Loop through the custom mover filelist and add up all the sizes for each entry.
+    TOTALCACHESIZE=0  # Initialize threshold met line
+    PREVIOUSLINEDATE=""  # Initialize previous line date
     #echo "Grabbing total filesize"
 
     #start looping
     while read CUSTOMLINE; do
-        #PULL out file size
-        ###echo "$CUSTOMLINE"
+        #PULL out file size, date, threshold
         CUSTOMLINESIZE=$(echo "$CUSTOMLINE" | sed -n 's/.*;\(.*\)/\1/p')
-        ###echo "Custom Size:"
-        ###echo $CUSTOMLINESIZE
+        CUSTOMLINEDATE=$(echo "$CUSTOMLINE" | sed -n 's/\([^;]*\).*/\1/p')
+        CUSTOMLINETHRESH=$(echo "$CUSTOMLINE" | sed -n 's/^[^;]*;\([^;]*\);.*/\1/p')
 
-        ((TOTALCACHESIZE += $CUSTOMLINESIZE))
+	# Do not add the size of an Hardlink (hardlinks have all the same date). Bordel effect: if 2 files have exactly the same date, shall not happen, if so add previous size)
+	if [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
+		# Append file size to total cache size
+        	((TOTALCACHESIZE += $CUSTOMLINESIZE))
+	fi
 
+	# Check if total cache size exceeds the threshold and autoage is selected. *
+        # Date has also to be different from previous file to prevent breaking hardlinks
+        if [ "$TOTALCACHESIZE" -ge "$CUSTOMLINETHRESH" ] && [ "$AGE" -eq -1 ] && [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
+            mvlogger "Threshold met, removing $CUSTOMLINE"
+            # Delete the line from the file (in-place), escape special characters from filename
+            sed -i "/^$(sed 's/[\/&]/\\&/g' <<< "$CUSTOMLINE")$/d" "$CUSTOM_MOVER_FILELIST"
+        fi
+        PREVIOUSLINEDATE=$CUSTOMLINEDATE
     done <$CUSTOM_MOVER_FILELIST
 
+    # Replace CUSTOMLINEDATE by FILECOUNT (which in fact is the line number) and remove CUSTOMLINETHRESH
+    awk -i inplace -F';\"' '{print NR ";\"" $2}' "$CUSTOM_MOVER_FILELIST"
 }
 
 totalsizeArraylist() {
@@ -672,10 +696,19 @@ start() {
             fi
             mvlogger "Threshold Used: $DEFAULTTHRESHOLD"
 
+            #Get the size threshold in bytes
+            if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
+                CACHESIZETHRESH=$(( $(zpool list -p -o size $CACHEPOOLNAME | tail -n 1) * $DEFAULTTHRESHOLD /100 ))
+            else
+                CACHESIZETHRESH=$(( $(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1) * $DEFAULTTHRESHOLD /100 ))
+            fi
+
             if [ "$SHAREPATH" = "/mnt/cache" ]; then
                 echo "Exiting, can't determine cache name used"
 
             elif [ $POOLPCTUSED -gt $DEFAULTTHRESHOLD ]; then
+                #Writing cachepoolname byte threshold to temporary file
+                echo "☐${CACHEPOOLNAME}_threshold;$CACHESIZETHRESH">>$MOVER_FILELIST
 
                 #Base Find String
                 FINDSTR="find \"$SHAREPATH\" -depth"
@@ -683,13 +716,14 @@ start() {
                 #Add Age variables to find string
                 if [ "$AGE" -ge 1 ]; then
                     mvlogger "Adding Age"
-                    mvlogger "Age ${AGE}"
                     RAGE=$((AGE - 1))
 
                     if [ "$CTIMEA" == "yes" ]; then
+	                    mvlogger "Age (creation time) ${AGE}"
                         FINDSTR+=" -ctime +$RAGE"
 
                     else
+	                    mvlogger "Age (modification time) ${AGE}"
                         FINDSTR+=" -mtime +$RAGE"
                     fi
                 fi

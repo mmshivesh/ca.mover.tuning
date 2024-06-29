@@ -92,6 +92,7 @@ _(Move files off cache based on age)_:
 
 _(Only move files that are older than this (in days))_:
 : <select name="daysold" class='myage' <?= $ageDisabled ?>>
+  <?= mk_option($cfg['daysold'], -1, "Auto")?>
   <?= mk_option($cfg['daysold'], 1, "1") ?>
   <?= mk_option($cfg['daysold'], 2, "2") ?>
   <?= mk_option($cfg['daysold'], 3, "3") ?>
@@ -105,9 +106,8 @@ _(Only move files that are older than this (in days))_:
   <?= mk_option($cfg['daysold'], $dt, "$dt") ?>
   <? endfor; ?>
   </select>
-
 <!--:mover_tuning_min_age_help:-->
-> Select the number of days old a file has to be in order to be moved (Up To 1 year).
+> Select the number of days old a file has to be in order to move (Up To 1 year). Auto will move from the oldest to the most recent, until threshold is met.
 
 _(Use CTIME)_:
 : <select name="ctime" class='myage' <?= $ageDisabled ?>>
