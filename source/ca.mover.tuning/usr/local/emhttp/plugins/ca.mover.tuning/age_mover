@@ -639,6 +639,7 @@ start() {
 
     for SHARECFG in /boot/config/shares/*; do
         overrideFlag=0
+        globalSkipFileTypes=$SKIPFILETYPES
 
         if grep -qs 'shareUseCache="yes"' "$SHARECFG"; then
             #Start Creating the Find String.
@@ -766,6 +767,13 @@ start() {
                 if [ -n "$SKIPFILETYPES" ]; then
                     FINDSTR+=" | grep -iv"
                     for i in $(echo $SKIPFILETYPES | sed "s/,/ /g"); do
+                        FINDSTR+=" -e '\\$i'"
+                    done
+                fi
+                
+                if [ $overrideFlag = 1 ] && [ -n "$globalSkipFileTypes" ]; then
+                    FINDSTR+=" | grep -iv"
+                    for i in $(echo $globalSkipFileTypes | sed "s/,/ /g"); do
                         FINDSTR+=" -e '\\$i'"
                     done
                 fi

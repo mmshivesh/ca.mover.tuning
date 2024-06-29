@@ -12,6 +12,12 @@ This is a simple [Unraid](https://unraid.net/) plugin that will let you fine-tun
 
 V2 merge all [pull requests](https://github.com/hugenbd/ca.mover.tuning/pulls) from [V1 repo](https://github.com/hugenbd/ca.mover.tuning) and will add several feature, as for example automatic age threshold
 
+## Changelog
+- 2024-06-29: 
+-- Added Automatic age threshold
+-- Added [Minor spelling corrections & README](https://github.com/dphelan/ca.mover.tuning/tree/spelling-corrections) from [Dphelan](https://github.com/dphelan)
+-- Added [Merge share skipfiletypes](https://github.com/davendesai/unraid-mover-tuning/tree/merge-share-skipfiletypes) from [Davendsai](https://github.com/davendesai)
+
 ## Installation
 
 You can download and install plugins with [Community Apps](https://unraid.net/community/apps/c/plugins).
