@@ -101,7 +101,7 @@ loopdirectories() {
 
     # Sort the directory list in reverse order with subdirectories first
     if [ -f "$CUSTOM_MOVER_DIRECTORYLIST" ]; then
-        while read DIRECTORYFILEPATH; do
+        while IFS= read -r DIRECTORYFILEPATH; do
 
             count=$(find "$DIRECTORYFILEPATH" -mindepth 1 | wc -l)
 
@@ -138,7 +138,7 @@ customFilelist() {
 
     ###Start looping through filelist one line at a time
     touch $CUSTOM_MOVER_FILELIST
-    while read CACHEFILEPATH; do
+    while IFS= read -r CACHEFILEPATH; do
         if [[ $CACHEFILEPATH == ☐* ]]; then
             CACHESIZETHRESH=$(echo "$CACHEFILEPATH" | sed -n 's/.*;\(.*\)/\1/p')
             mvlogger "CACHESIZETHRESH: $CACHESIZETHRESH"
@@ -146,7 +146,7 @@ customFilelist() {
             mvlogger "$CACHEFILEPATH is a Directory send to directory list $CUSTOM_MOVER_DIRECTORYLIST"
             echo "$CACHEFILEPATH" >>$CUSTOM_MOVER_DIRECTORYLIST
         elif [[ $CACHEFILEPATH != ☐* ]]; then
-            CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
+        CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
             if [ "$CTIMEA" == "yes" ]; then
                 CACHEFILEDATE=$(stat -c%W "$CACHEFILEPATH")
             else
@@ -168,7 +168,7 @@ loopcustomFilelist() {
     HASHARDLINK=false
 
     #Loop through the filelist and check to see if there are any hardlinks
-    while read HARDFILE; do
+    while IFS= read -r HARDFILE; do
 
         #Pull out FilePath
         HARDFILEPATH=$(echo "$HARDFILE" | sed -n 's/^[^;]*;\(.*\);[^;]*$/\1/p')
@@ -196,7 +196,7 @@ loopcustomFilelist() {
         mvlogger "File List contains hardlinks, sending all of the filelist to mover binary"
 
         #Loop through the filelist and create a new "HARDLinks custom mover file"
-        while read HARD_LINK_FILELIST; do
+        while IFS= read -r HARD_LINK_FILELIST; do
             #Pull out FilePath only.
             HARD_PATH=$(echo "$HARD_LINK_FILELIST" | sed -n 's/^[^;]*;\(.*\);[^;]*$/\1/p')
 
@@ -220,7 +220,7 @@ loopcustomFilelist() {
     else
         #File List contains no hardlinks.  loop through each file.
 
-        while read CUSTOMFILE; do
+        while IFS= read -r CUSTOMFILE; do
             ##Code for softstop here
             if [ -e $SOFTSTOPFILE ]; then
                 echo "Soft Stop requested"
@@ -277,7 +277,7 @@ loopArrayFilelist() {
     #Reach through the CUSTOM MOVER FILELIST and send the filepath to the mover binary
 
     ##Start looping
-    while read CUSTOMFILE; do
+    while IFS= read -r CUSTOMFILE; do
         #Check to see if there is a soft stop requested.
         if [ -e $SOFTSTOPFILE ]; then
             echo "Soft Stop requested"
@@ -338,7 +338,7 @@ customArrayFilelist() {
     FILECOUNT=0
 
     mvlogger "Cache File List: $CACHE_FILELIST"
-    while read CACHEFILEPATH; do
+    while IFS= read -r CACHEFILEPATH; do
         CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
 
         if [ -d "$CACHEFILEPATH" ]; then
@@ -357,8 +357,9 @@ totalsizeFilelist() {
     #echo "Grabbing total filesize"
 
     #start looping
-    while read CUSTOMLINE; do
-        #PULL out file size, date, threshold
+    while IFS= read -r CUSTOMLINE; do
+        #PULL out file size
+        ###echo "$CUSTOMLINE"
         CUSTOMLINESIZE=$(echo "$CUSTOMLINE" | sed -n 's/.*;\(.*\)/\1/p')
         CUSTOMLINEDATE=$(echo "$CUSTOMLINE" | sed -n 's/\([^;]*\).*/\1/p')
         CUSTOMLINETHRESH=$(echo "$CUSTOMLINE" | sed -n 's/^[^;]*;\([^;]*\);.*/\1/p')
@@ -366,7 +367,7 @@ totalsizeFilelist() {
 	# Do not add the size of an Hardlink (hardlinks have all the same date). Bordel effect: if 2 files have exactly the same date, shall not happen, if so add previous size)
 	if [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
 		# Append file size to total cache size
-        	((TOTALCACHESIZE += $CUSTOMLINESIZE))
+        ((TOTALCACHESIZE += $CUSTOMLINESIZE))
 	fi
 
 	# Check if total cache size exceeds the threshold and autoage is selected. *
@@ -389,7 +390,7 @@ totalsizeArraylist() {
     #echo "Grabbing total filesize"
 
     #start looping
-    while read CUSTOMFILE; do
+    while IFS= read -r CUSTOMLINE; do
         #PULL out file size
         CUSTOMFILESIZE=$(echo "$CUSTOMFILE" | sed -n 's/.*;\(.*\)/\1/p')
 
@@ -454,6 +455,9 @@ if [ -f $CFGFILE ]; then
         LOGLEVEL=1
         echo "Log Level: $LOGLEVEL"
     fi
+else 
+    echo "mover: \"/boot/config/share.cfg\" does not exist, check this."
+    exit 2
 fi
 
 mvlogger "*********************************MOVER START*******************************"
@@ -490,12 +494,21 @@ setMoverSettings() {
     if [ -z "$5" ]; then
         mvlogger "No Skipfiles Argument Supplied"
         SKIPFILESLIST=""
+        SKIPFOLDERSLIST=""
     else
-        ###echo "Skipfilelist supplied"
-        ###SKIPFILESLIST=chomp($5)
-        SKIPFILESLIST=$5
-        SKIPFILESLIST=$(echo $SKIPFILESLIST | sed 's/ *$//g')
-        mvlogger "SKIP FILE: $SKIPFILESLIST"
+        SKIPFILESPATH=$5
+        SKIPFILESPATH=$(echo $SKIPFILESPATH | sed 's/ *$//g')
+        SKIPFILESLIST=$SKIPFILESPATH
+        SKIPFOLDERSLIST=""
+        while IFS= read -r path; do
+            path=${path%/}
+            if [ -d "$path" ]; then
+                SKIPFOLDERSLIST+="$path/*"$'\n'
+            fi
+        done < <(cat "$SKIPFILESPATH"; echo)
+        SKIPFOLDERSLIST="${SKIPFOLDERSLIST%$'\n'}"
+        mvlogger "SKIP FILES PATH: $SKIPFILESLIST"
+        mvlogger "SKIP FOLDERS: $SKIPFOLDERSLIST"
     fi
 
     if [ -z "$6" ]; then
@@ -596,11 +609,10 @@ start() {
     #Check to see if /usr/local/sbin/move exists.  
     #Moved in 6.12.0 from /usr/local/bin/move to /usr/local/sbin/move. Moved in 7.0 from /usr/local/sbin/move to /usr/libexec/unraid/move
     if [ ! -e /usr/local/sbin/move ]; then
-	echo "/usr/local/sbin/move does not exists, creating soft link"
-	[ -e /usr/local/bin/move ] && ln -s /usr/local/bin/move /usr/local/sbin/move
+	    echo "/usr/local/sbin/move does not exists, creating soft link"
+	    [ -e /usr/local/bin/move ] && ln -s /usr/local/bin/move /usr/local/sbin/move
         [ -e /usr/libexec/unraid/move ] && ln -s /usr/libexec/unraid/move /usr/local/sbin/move
     fi
-
 
     echo $$ >/var/run/mover.pid
     [[ $LOGLEVEL -gt 0 ]] && echo "mover: started"
@@ -753,13 +765,22 @@ start() {
                     FINDSTR+=" -printf '%S:%p\0' | awk -v RS='\0' -F : '\$1 > 0.$SPARSENESS {sub(/^[^:]*:/, \"\"); print}'"
                 fi
 
+                if [ -n "$SKIPFOLDERSLIST" ]; then
+                    mvlogger "Adding Skip Folder List"
+                    mvlogger "Skip Folder List Path: ${SKIPFILESPATH}"
+
+                    while IFS= read -r folder; do
+                        FINDSTR+=" -not -path \"$folder\""
+                    done <<<"$SKIPFOLDERSLIST"
+                fi
+
                 #Add additional commands
                 #Add Skipfilelist to find string
                 if [ -n "$SKIPFILESLIST" ]; then
                     mvlogger "Adding Skip File List"
-                    mvlogger "Skip File List Path: ${SKIPFILESLIST}"
+                    mvlogger "Skip File List Path: ${SKIPFILESPATH}"
 
-                    FINDSTR+=" | grep -vFf '$SKIPFILESLIST'"
+                    FINDSTR+=" | grep -vFx -f <(sed 's/\/*$//' '$SKIPFILESLIST')"
                 fi
 
                 mvlogger "Skipfiletypes string: $FINDSTR"
@@ -779,6 +800,7 @@ start() {
                 fi
 
                 if [ -d "$SHAREPATH" ]; then
+                    mvlogger "FINDSTR is: $FINDSTR"
                     eval "$FINDSTR>>$MOVER_FILELIST"
                 fi
 
@@ -905,8 +927,25 @@ stop() {
 }
 
 softstop() {
-    echo "Soft Start Requested"
+    echo "Soft Stop Requested"
+    if [ ! -f $PIDFILE ]; then
+        echo "mover: not running"
+        exit 0
+    fi
+
+
     touch $SOFTSTOPFILE
+}
+
+status() {
+    if [ -f $PIDFILE ]; then
+	echo "mover: running"
+	cat $PIDFILE
+	exit 0
+    else
+	echo "mover: not running"
+    fi
+
 }
 
 case $1 in
@@ -920,7 +959,7 @@ softstop)
     softstop
     ;;
 status)
-    [ -f $PIDFILE ]
+    status
     ;;
 *)
     # Default is "start"
