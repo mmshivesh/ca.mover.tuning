@@ -8,7 +8,7 @@
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
 <!ENTITY branch    "automatic-age-threshold">
-<!ENTITY pluginURL "hhttps://raw.githubusercontent.com/&github;/&branch;/plugins/&name;.plg">
+<!ENTITY pluginURL "hhttps://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
