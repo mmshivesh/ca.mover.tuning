@@ -160,8 +160,8 @@ The 'remove' script.
 -->
 <FILE Run="/bin/bash" Method="remove">
 <INLINE>
-if [[ -e /usr/local/sbin/mover.old ]]; mv -f /usr/local/sbin/mover.old /usr/local/sbin/mover; fi
-if [[ -e /usr/local/bin/mover.old ]]; mv -f /usr/local/bin/mover.old /usr/local/bin/mover; fi
+if [[ -e /usr/local/sbin/mover.old ]]; then mv -f /usr/local/sbin/mover.old /usr/local/sbin/mover; fi
+if [[ -e /usr/local/bin/mover.old ]]; then mv -f /usr/local/bin/mover.old /usr/local/bin/mover; fi
 removepkg &name;-&version;-x86_64-1
 rm -rf &plugdir;
 rm -rf /boot/config/plugins/&name;
