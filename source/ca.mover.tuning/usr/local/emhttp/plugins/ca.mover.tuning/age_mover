@@ -593,6 +593,14 @@ start() {
         echo "Mover soft stop file removed."
     fi
 
+### to delete, already done by plugin install script ###
+# Check to see if /usr/local/sbin/move exists.  Moved in 6.12.0 from /usr/local/bin/move to /usr/local/sbin/move
+#   if [ ! -e /usr/local/sbin/move ]; then
+#	  echo "/usr/local/sbin/move does not exists, creating soft link"
+#     ln -s /usr/local/bin/move /usr/local/sbin/move
+#   fi
+###
+
     echo $$ >/var/run/mover.pid
     [[ $LOGLEVEL -gt 0 ]] && echo "mover: started"
 
