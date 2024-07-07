@@ -139,6 +139,13 @@ if [[ -e /usr/local/bin/move ]]; then
   ln -s /usr/local/bin/move /usr/local/sbin/move
 fi
 
+echo "Fixing permissions"
+chmod +x /usr/local/sbin/mover
+chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/*.php
+chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/age_mover 
+chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/mover
+chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover 
+
 echo ""
 echo "----------------------------------------------------"
 echo " &name; has been installed."
