@@ -2,18 +2,21 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.06.30">
-<!ENTITY md5       "398b4290f020b42db63ef120b52e6667">
+<!ENTITY version   "2024.07.07">
+<!ENTITY md5       "a146522a08bc8b7c4ca25fc8c0735613">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
-<!ENTITY branch    "automatic-age-threshold">
+<!ENTITY branch    "master">
 <!ENTITY pluginURL "hhttps://raw.githubusercontent.com/&github;/&branch;/plugins/&name;.plg">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
 
 <CHANGES>
+###2024-07-07
+- Unraid 7.0.0 compatibility (R3yn4ld)
+
 ###2024-06-30
 - Automatic age threshold and plugin cleaning (R3yn4ld)
 - Minor spelling corrections and README (Dphelan)
@@ -137,6 +140,10 @@ if [[ -e /usr/local/bin/move ]]; then
   echo "Creating Soft link for 6.12 RC8 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
   if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
   ln -s /usr/local/bin/move /usr/local/sbin/move
+elif [[ -e /usr/libexec/unraid/move ]]; then
+  echo "Creating Soft link for 7.0 or newer since /usr/local/sbin/move is now located in /usr/libexec/unraid/move"
+  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
+  ln -s /usr/libexec/unraid/move /usr/local/sbin/move
 fi
 
 echo "Fixing permissions"
