@@ -160,6 +160,7 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 echo ""
 echo "----------------------------------------------------"
 echo " &name; has been installed."
+echo " Copyright 2018, Andrew Zawadzki"
 echo " Version: &version;"
 echo "----------------------------------------------------"
 echo ""
