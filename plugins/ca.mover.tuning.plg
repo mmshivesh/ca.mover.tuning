@@ -15,7 +15,7 @@
 
 <CHANGES>
 ###2024-07-10
-- Unraid 7.0.0 Move now without mover tuning plugin" compatibility (R3yn4ld)
+- Unraid 7.0.0 compatibility (/ 6.x bug?): original mover now works with "Move Now button follows plug-in filters" set to off (R3yn4ld)
 
 ###2024-07-07
 - Unraid 7.0.0 compatibility (R3yn4ld)
