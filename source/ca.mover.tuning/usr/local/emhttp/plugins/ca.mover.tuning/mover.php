@@ -15,7 +15,7 @@ function logger($string)
     }
 }
 
-function startMover($options = "")
+function startMover($options = "start")
 {
     global $vars, $cfg, $cron;
 
