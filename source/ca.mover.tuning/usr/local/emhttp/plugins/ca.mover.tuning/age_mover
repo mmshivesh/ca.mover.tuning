@@ -35,7 +35,7 @@
 PIDFILE="/var/run/mover.pid"
 SOFTSTOPFILE="/var/run/moversoft.stop"
 CFGFILE="/boot/config/share.cfg"
-LOGLEVEL=0
+LOGLEVEL=1
 AGE=0
 SIZE=0
 SPARSENESS=0
@@ -52,14 +52,14 @@ CACHESIZETHRESH=0
 TOTALARRAYSIZE=0
 REMAININGARRAYSIZE=0
 NOW=$(date +"%FT%H%M%S")
-MOVER_FILELIST="/tmp/Mover/Mover_Tuning_$NOW.list"
-CACHE_FILELIST="/tmp/Mover/Cache_Tuning_$NOW.list"
-CUSTOM_MOVER_FILELIST="/tmp/Mover/Custom_Mover_Tuning_$NOW.list"
-CUSTOM_MOVER_DIRECTORYLIST="/tmp/Mover/Custom_Mover_Directory_$NOW.list"
-CUSTOM_CACHE_FILELIST="/tmp/Mover/Custom_Cache_Tuning_$NOW.list"
-HARD_MOVER_FILELIST="/tmp/Mover/Hard_Mover_Tuning_$NOW.list"
+ARRAY_FILTERED_FILELIST="/tmp/ca.mover.tuning/Array_filtered_files_$NOW.list"
+ARRAY_TO_CACHE_FILELIST="/tmp/ca.mover.tuning/Array_to_Cache_$NOW.list"
+CACHE_FILTERED_FILELIST="/tmp/ca.mover.tuning/Cache_filtered_files_$NOW.list"
+CACHE_TO_ARRAY_FILELIST="/tmp/ca.mover.tuning/Cache_to_Array_$NOW.list"
+CACHE_HARDLINKS_FILELIST="/tmp/ca.mover.tuning/Cache_hardlinks_$NOW.list"
+EMPTY_DIRECTORYLIST="/tmp/ca.mover.tuning/Custom_Mover_Directory_$NOW.list"
 MOVER_STATUS="/usr/local/emhttp/state/mover.ini"
-MOVER_LOG="/tmp/Mover/Mover_Tuning_$NOW.log"
+MOVER_LOG="/tmp/ca.mover.tuning/Mover_Tuning_$NOW.log"
 GUI_CURRENT_FILE=""
 GUI_ACTION="Calculating"
 NUM_FILES_TO_ARRAY=0
@@ -67,9 +67,9 @@ NUM_FILES_TO_CACHE=0
 
 mvlogger() {
 
-    if [ ! -d "/tmp/Mover" ]; then
-        echo "/tmp/Mover Directory does not exist. Creating it"
-        mkdir -p /tmp/Mover
+    if [ ! -d "/tmp/ca.mover.tuning" ]; then
+        echo "/tmp/ca.mover.tuning Directory does not exist. Creating it"
+        mkdir -p /tmp/ca.mover.tuning
     fi
 
     if [ $LOGLEVEL = 1 ]; then
@@ -97,10 +97,10 @@ moverStatusWrite() {
 }
 
 #Move each directory, starting with their subdirectories first ony if they are empty..
-loopdirectories() {
-
+loopDirectories() {
     # Sort the directory list in reverse order with subdirectories first
-    if [ -f "$CUSTOM_MOVER_DIRECTORYLIST" ]; then
+    if [ -f "$EMPTY_DIRECTORYLIST" ]; then
+        mvlogger "Created empty directory list: $EMPTY_DIRECTORYLIST"
         while IFS= read -r DIRECTORYFILEPATH; do
 
             count=$(find "$DIRECTORYFILEPATH" -mindepth 1 | wc -l)
@@ -124,44 +124,45 @@ loopdirectories() {
 
             fi
 
-        done < <(cat $CUSTOM_MOVER_DIRECTORYLIST | sort -r -t'/' -k3,3nr -k4)
+        done < <(cat $EMPTY_DIRECTORYLIST | sort -r -t'/' -k3,3nr -k4)
     else
-        mvlogger "No $CUSTOM_MOVER_DIRECTORYLIST created as no empty directories"
+        mvlogger "No EMPTY_DIRECTORYLIST file created as no empty directories"
     fi
 
 }
 
 #Create function to write a semicolon delimited list of files to move. (Count, FilePath, Size)
-customFilelist() {
+customCacheFilelist() {
     ##echo "Write a custom file in /tmp that contains the file count, filepath and size of file"
-    ##echo "Custom Mover File: $CUSTOM_MOVER_FILELIST"
+    ##echo "Custom Mover File: $CACHE_TO_ARRAY_FILELIST"
 
     ###Start looping through filelist one line at a time
-    touch $CUSTOM_MOVER_FILELIST
+    touch $CACHE_TO_ARRAY_FILELIST
     while IFS= read -r CACHEFILEPATH; do
         if [[ $CACHEFILEPATH == ☐* ]]; then
             CACHESIZETHRESH=$(echo "$CACHEFILEPATH" | sed -n 's/.*;\(.*\)/\1/p')
             mvlogger "CACHESIZETHRESH: $CACHESIZETHRESH"
         elif [ -d "$CACHEFILEPATH" ]; then
-            mvlogger "$CACHEFILEPATH is a Directory send to directory list $CUSTOM_MOVER_DIRECTORYLIST"
-            echo "$CACHEFILEPATH" >>$CUSTOM_MOVER_DIRECTORYLIST
+            mvlogger "$CACHEFILEPATH is a Directory send to directory list EMPTY_DIRECTORYLIST"
+            echo "$CACHEFILEPATH" >>$EMPTY_DIRECTORYLIST
         elif [[ $CACHEFILEPATH != ☐* ]]; then
-        CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
+            CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
             if [ "$CTIMEA" == "yes" ]; then
                 CACHEFILEDATE=$(stat -c%W "$CACHEFILEPATH")
             else
                 CACHEFILEDATE=$(stat -c%Y "$CACHEFILEPATH")
             fi	
-            mvlogger "$CACHEFILEPATH is a file sent to file list $CUSTOM_MOVER_FILELIST"
-            echo "$CACHEFILEDATE;$CACHESIZETHRESH;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$CUSTOM_MOVER_FILELIST
+            mvlogger "$CACHEFILEPATH is a file sent to file list CACHE_TO_ARRAY_FILELIST"
+            echo "$CACHEFILEDATE;$CACHESIZETHRESH;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$CACHE_TO_ARRAY_FILELIST
         fi
-    done <$MOVER_FILELIST
+    done <$CACHE_FILTERED_FILELIST
+    mvlogger "Created Cache to Array custom file list: $CACHE_TO_ARRAY_FILELIST"
 
-    ## Sorting custom file by date
-    sort -t ';' -k 1n "$CUSTOM_MOVER_FILELIST" -o "$CUSTOM_MOVER_FILELIST"
+    ## Sorting custom file by date in reverse order
+    sort -t ';' -k 1n "$CACHE_TO_ARRAY_FILELIST" -o "$CACHE_TO_ARRAY_FILELIST"
 }
 
-loopcustomFilelist() {
+loopCacheFilelist() {
     #Reach through the CUSTOM MOVER FILELIST and send the filepath to the mover binary
 
     #Set Has Hard Links = False as we have to test for this use case.
@@ -187,7 +188,7 @@ loopcustomFilelist() {
             HASHARDLINK=true
         fi
 
-    done <$CUSTOM_MOVER_FILELIST
+    done <$CACHE_TO_ARRAY_FILELIST
 
     mvlogger "Hard Link Status: $HASHARDLINK"
 
@@ -203,17 +204,17 @@ loopcustomFilelist() {
             #Remove leading and training quotes.
             HARD_PATH=$(echo "$HARD_PATH" | sed 's/.\(.*\)./\1/')
 
-            mvlogger "Adding $HARD_PATH to $HARD_MOVER_FILELIST"
-            echo "$HARD_PATH" >>$HARD_MOVER_FILELIST
-        done <$CUSTOM_MOVER_FILELIST
+            mvlogger "Adding $HARD_PATH to $CACHE_HARDLINKS_FILELIST"
+            echo "$HARD_PATH" >>$CACHE_HARDLINKS_FILELIST
+        done <$CACHE_TO_ARRAY_FILELIST
 
         #Send Files to Binary mover
         if [ "$TESTMODE" = "yes" ]; then
             mvlogger "Running in Test Mode: HARDLINKS"
         else
             #Send the hard links filelist into mover.
-            mvlogger "Sending $HARD_MOVER_FILELIST to binary mover"
-            cat "$HARD_MOVER_FILELIST" | /usr/local/sbin/move -d $LOGLEVEL
+            mvlogger "Sending $CACHE_HARDLINKS_FILELIST to binary mover"
+            cat "$CACHE_HARDLINKS_FILELIST" | /usr/local/sbin/move -d $LOGLEVEL
 
         fi
 
@@ -244,7 +245,6 @@ loopcustomFilelist() {
             GUI_CURRENT_FILE=$CUSTOMFILEPATH
             GUI_SIZE_LEFT=$(echo $REMAININGCACHESIZE | numfmt --to iec --format "%8.2f")
             GUI_ACTION="Moving $CUSTOMFILEPOSITION of $NUM_FILES_TO_ARRAY to Array.      $GUI_SIZE_LEFT remaining."
-
             moverStatusWrite
 
             #Send File to Mover Binary
@@ -269,12 +269,12 @@ loopcustomFilelist() {
             #Write Status
             moverStatusWrite
 
-        done <$CUSTOM_MOVER_FILELIST
+        done <$CACHE_TO_ARRAY_FILELIST
     fi
 }
 
 loopArrayFilelist() {
-    #Reach through the CUSTOM MOVER FILELIST and send the filepath to the mover binary
+    #Reach through the ARRAY_TO_CACHE_FILELIST and send the filepath to the mover binary
 
     ##Start looping
     while IFS= read -r CUSTOMFILE; do
@@ -326,18 +326,18 @@ loopArrayFilelist() {
         #Write Status
         moverStatusWrite
 
-    done <$CUSTOM_CACHE_FILELIST
+    done <$ARRAY_TO_CACHE_FILELIST
 }
 
 customArrayFilelist() {
     ##echo "Write a custom file in /tmp that contains the file count, filepath and size of file"
-    ##echo "Custom Mover File: $CUSTOM_CACHE_FILELIST"
+    ##echo "Custom Mover File: $ARRAY_TO_CACHE_FILELIST"
 
     ###Start looping through filelist one line at a time
-    touch $CUSTOM_CACHE_FILELIST
+    touch $ARRAY_TO_CACHE_FILELIST
     FILECOUNT=0
 
-    mvlogger "Cache File List: $CACHE_FILELIST"
+
     while IFS= read -r CACHEFILEPATH; do
         CACHEFILESIZE=$(stat -c%s "$CACHEFILEPATH")
 
@@ -345,12 +345,13 @@ customArrayFilelist() {
             mvlogger "It's a Directory don't include: $CACHEFILEPATH"
         else
             ((FILECOUNT++))
-            echo "$FILECOUNT;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$CUSTOM_CACHE_FILELIST
+            echo "$FILECOUNT;\"$CACHEFILEPATH\";$CACHEFILESIZE" >>$ARRAY_TO_CACHE_FILELIST
         fi
-    done <$CACHE_FILELIST
+    done <$ARRAY_FILTERED_FILELIST
+    mvlogger "Created Array to Cache file list: $ARRAY_TO_CACHE_FILELIST"
 }
 
-totalsizeFilelist() {
+totalsizeCacheList() {
     #Loop through the custom mover filelist and add up all the sizes for each entry.
     TOTALCACHESIZE=0  # Initialize threshold met line
     PREVIOUSLINEDATE=0  # Initialize previous line date
@@ -364,7 +365,7 @@ totalsizeFilelist() {
         CUSTOMLINEDATE=$(echo "$CUSTOMLINE" | sed -n 's/\([^;]*\).*/\1/p')
         CUSTOMLINETHRESH=$(echo "$CUSTOMLINE" | sed -n 's/^[^;]*;\([^;]*\);.*/\1/p')
 
-	# Do not add the size of an Hardlink (hardlinks have all the same date). Bordel effect: if 2 files have exactly the same date, shall not happen, if so add previous size)
+	# Do not add the size of an Hardlink (hardlinks have all the same date). Border effect: if 2 files have exactly the same date, shall not happen, if so add previous size)
 	if [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
 		# Append file size to total cache size
         ((TOTALCACHESIZE += $CUSTOMLINESIZE))
@@ -375,13 +376,13 @@ totalsizeFilelist() {
         if [ "$TOTALCACHESIZE" -ge "$CUSTOMLINETHRESH" ] && [ "$AGE" -eq -1 ] && [ "$PREVIOUSLINEDATE" -ne "$CUSTOMLINEDATE" ] ; then
             mvlogger "Threshold met, removing $CUSTOMLINE"
             # Delete the line from the file (in-place), escape special characters from filename
-            sed -i "/^$(sed 's/[\/&]/\\&/g' <<< "$CUSTOMLINE")$/d" "$CUSTOM_MOVER_FILELIST"
+            sed -i "/^$(sed 's/[\/&]/\\&/g' <<< "$CUSTOMLINE")$/d" "$CACHE_TO_ARRAY_FILELIST"
         fi
         PREVIOUSLINEDATE=$CUSTOMLINEDATE
-    done <$CUSTOM_MOVER_FILELIST
+    done <$CACHE_TO_ARRAY_FILELIST
 
     # Replace CUSTOMLINEDATE by FILECOUNT (which in fact is the line number) and remove CUSTOMLINETHRESH
-    awk -i inplace -F';\"' '{print NR ";\"" $2}' "$CUSTOM_MOVER_FILELIST"
+    awk -i inplace -F';\"' '{print NR ";\"" $2}' "$CACHE_TO_ARRAY_FILELIST"
 }
 
 totalsizeArraylist() {
@@ -396,7 +397,7 @@ totalsizeArraylist() {
 
         ((TOTALARRAYSIZE += $CUSTOMFILESIZE))
 
-    done <$CUSTOM_CACHE_FILELIST
+    done <$ARRAY_TO_CACHE_FILELIST
 
 }
 
@@ -429,8 +430,8 @@ mvallfrompool() {
                         fi
                     else
                         MVALLSTR="find \"$SHAREPATH\" -depth"
-                        eval "$MVALLSTR>>$MOVER_FILELIST"
-
+                        eval "$MVALLSTR>>$CACHE_FILTERED_FILELIST"
+                        mvlogger "Created Cache Filtered List: $CACHE_FILTERED_FILELIST"
                         if [ "$TESTMODE" = "yes" ]; then
                             mvlogger "Running in Test Mode: $MVALLSTR"
                         fi
@@ -606,25 +607,18 @@ start() {
         echo "Mover soft stop file removed."
     fi
 
-### to delete, already done by plugin install script ###
-# Check to see if /usr/local/sbin/move exists.  Moved in 6.12.0 from /usr/local/bin/move to /usr/local/sbin/move
-#   if [ ! -e /usr/local/sbin/move ]; then
-#	  echo "/usr/local/sbin/move does not exists, creating soft link"
-#     ln -s /usr/local/bin/move /usr/local/sbin/move
-#   fi
-###
-
     echo $$ >/var/run/mover.pid
     [[ $LOGLEVEL -gt 0 ]] && echo "mover: started"
 
-    #Make /tmp/Mover directory silently.
-    ###mkdir -p /tmp/Mover
 
     #Delete helper files over 5 days old.
-    find /tmp/Mover/* -daystart -mtime +5 -name '*.list' -delete
+    find /tmp/ca.mover.tuning/* -daystart -mtime +5 -name '*.list' -delete
 
     #Delete Mover Log files over 10 days old.
-    find /tmp/Mover/* -daystart -mtime +10 -name '*.log' -delete
+    find /tmp/ca.mover.tuning/* -daystart -mtime +10 -name '*.log' -delete
+
+    #Delete Mover List files with 0 lines.
+    find /tmp/ca.mover.tuning/* -size 0 -name '*.list' -delete
 
     shopt -s nullglob
 
@@ -720,8 +714,8 @@ start() {
                 echo "Exiting, can't determine cache name used"
 
             elif [ $POOLPCTUSED -gt $DEFAULTTHRESHOLD ]; then
-                #Writing cachepoolname byte threshold to temporary file
-                echo "☐${CACHEPOOLNAME}_threshold;$CACHESIZETHRESH">>$MOVER_FILELIST
+                #Writing cachepoolname byte size threshold to temporary file
+                echo "☐${CACHEPOOLNAME}_threshold;$CACHESIZETHRESH">>$CACHE_FILTERED_FILELIST
 
                 #Base Find String
                 FINDSTR="find \"$SHAREPATH\" -depth"
@@ -801,9 +795,9 @@ start() {
 
                 if [ -d "$SHAREPATH" ]; then
                     mvlogger "FINDSTR is: $FINDSTR"
-                    eval "$FINDSTR>>$MOVER_FILELIST"
+                    eval "$FINDSTR>>$CACHE_FILTERED_FILELIST"
                 fi
-
+                mvlogger "Updated Cache Filtered List: $CACHE_FILTERED_FILELIST for $SHARENAME"
             else
                 mvlogger "Mover not Needed."
                 MOVENOTNEEDED="Mover Not Needed"
@@ -820,24 +814,20 @@ start() {
 
     #Start Mover Items based on file list
 
-    touch $MOVER_FILELIST
+    touch $CACHE_FILTERED_FILELIST
 
-    customFilelist
-    mvlogger "after customFilelist"
-    totalsizeFilelist
-    mvlogger "After totalsizeFilelist"
+    customCacheFilelist
+    totalsizeCacheList
     REMAININGCACHESIZE=$TOTALCACHESIZE
 
     #Write the first status as matching so we are at 0%
     moverStatusWrite
 
-    #loopcustomFilelist
-
     mvlogger "-----------------------------------------Running Array Files to Cache drives----------------------------------------------"
     mvlogger "Running to cache drive"
     # Check for objects to move from array to pools
     #Loop through each disk lookig for all shares.
-    touch $CACHE_FILELIST
+    touch $ARRAY_FILTERED_FILELIST
     for SHAREPATH in $(ls -dv /mnt/disk[0-9]*/*/); do
         SHARE=$(basename "$SHAREPATH")
         #Check to see if the share is set to preferr
@@ -850,17 +840,14 @@ start() {
             #Check to see if the mount pool exists.  i.e. /mnt/cache
             if [[ -d "/mnt/$shareCachePool" ]]; then
                 mvlogger "Moving files from Array to Cache!"
-                find "${SHAREPATH%/}" -depth >>$CACHE_FILELIST
+                find "${SHAREPATH%/}" -depth >>$ARRAY_FILTERED_FILELIST
             fi
         fi
     done
-
-    mvlogger "File to Cache filelist created"
-
-    touch $CUSTOM_CACHE_FILELIST
-    #customCachelist - Write a custom filelist to CUSTOM_CACHE_FILELIST
+    mvlogger "Created Array Filtered List: $ARRAY_FILTERED_FILELIST"
+    touch $ARRAY_TO_CACHE_FILELIST
+    #customCachelist - Write a custom filelist to ARRAY_TO_CACHE_FILELIST
     customArrayFilelist
-    mvlogger "make customArray File List"
 
     #Grab the total size of all files to be placed on the cache.
     totalsizeArraylist
@@ -873,14 +860,14 @@ start() {
     mvlogger "write first status file after to array"
 
     #Set Total Number of files to Array and cache to update progress.
-    NUM_FILES_TO_ARRAY=$(tail -1 $CUSTOM_MOVER_FILELIST | sed -n 's/\([^;]*\).*/\1/p')
-    NUM_FILES_TO_CACHE=$(tail -1 $CUSTOM_CACHE_FILELIST | sed -n 's/\([^;]*\).*/\1/p')
+    NUM_FILES_TO_ARRAY=$(tail -1 $CACHE_TO_ARRAY_FILELIST | sed -n 's/\([^;]*\).*/\1/p')
+    NUM_FILES_TO_CACHE=$(tail -1 $ARRAY_TO_CACHE_FILELIST | sed -n 's/\([^;]*\).*/\1/p')
 
-    #Loop Through Cache to array Mover fiels
-    loopcustomFilelist
+    #Loop Through Cache to array Mover fields
+    loopCacheFilelist
 
     #move the empty directories
-    loopdirectories
+    loopDirectories
 
     #loop through each file in the list of array files.
     loopArrayFilelist
