@@ -711,7 +711,7 @@ start() {
 
             #Get the size threshold in bytes
             if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-                CACHESIZETHRESH=$(( $(zpool list -p -o size $CACHEPOOLNAME | tail -n 1) * $DEFAULTTHRESHOLD /100 ))
+                CACHESIZETHRESH=$(( $(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}') * $DEFAULTTHRESHOLD /100))
             else
                 CACHESIZETHRESH=$(( $(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1) * $DEFAULTTHRESHOLD /100 ))
             fi
