@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.07.29">
-<!ENTITY md5       "98865e4f11ff1a99dfcbf2e29378ca96">
+<!ENTITY version   "2024.07.29.b">
+<!ENTITY md5       "9ad42a2deda99912c4eb35c617ce9023">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -11,9 +11,12 @@
 <!ENTITY pluginURL "https://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
 ]>
 
-<PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
+<PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
+###2024-07-29b
+- Various bug fixes [R3yn4ld], [Freender]
+
 ###2024-07-29
 - Complete rewrite of file listing functions (find, decide to move..) [R3yn4ld]
 - Internal moving/syncing engine
@@ -143,7 +146,7 @@ if [[ -e /usr/local/sbin/mover ]]; then
 elif [[ -e /usr/local/bin/mover ]]; then
   if [[ ! -f /usr/local/bin/mover.old ]]; then 
     echo "Backing up current /usr/local/bin/mover binary "
-    mv /usr/local/bin/mover /usr/local/sbin/mover.old
+    mv /usr/local/bin/mover /usr/local/bin/mover.old
   fi
 fi
 echo "Installing tuned mover script"
@@ -169,54 +172,29 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 
 # Config file
 config_file=/boot/config/plugins/&name;/&name;.cfg;
-# Default configuration values
-defaults=(
-advancedFilters="no"
-advancedOptions="no"
-afterScript=""
-age="yes"
-beforeScript=""
-ctime="no"
-daysold="-1"
-enableTurbo="yes"
-filelistf="no"
-filetypesf="no"
-force="no"
-ignoreHidden="no"
-lastCacheSync="1722204120"
-logging="yes"
-movenow="yes"
-moverDisabled="no"
-moverIO="-c 2 -n 0"
-moverNice="0"
-omovercfg="no"
-parity="yes"
-repairPrimary="no"
-sizef="no"
-sparsnessf="no"
-synchronizeCache="yes"
-testmode="yes"
-threshold="90"
-"version=$version"
-)
 
-echo "Checking config file"
-# Check if the file exists
 if [[ ! -f "$config_file" ]]; then
-  # Create the file with default values
-  echo "${defaults[@]}" > "$config_file"
-  echo "Created file $config_file with default configuration."
-  exit 0
-fi
-# Update the existing file
-if grep -q "version" "$config_file"; then
-  sed -i "s/version=.*$/version=$version/" "$config_file"
+  echo "Creating file $config_file with default configuration."
+  # Create the file with some default values
+  echo 'testmode="yes"' > $config_file
+  echo 'logging="yes"' >> $config_file
+  echo 'movenow="yes"' >> $config_file
+  echo "version=&version;" >> "$config_file"
 else
-  echo "version=$version" >> "$config_file"
+  echo "Updating config file"
+  echo "Forcing test mode"
+  if grep -q "testmode" "$config_file"; then
+    sed -i "s/testmode=.*$/testmode=\"yes\"";/" "$config_file"
+  else
+    echo 'testmode=yes" >> "$config_file"
+  fi
+  echo "Updating version number"
+  if grep -q "version" "$config_file"; then
+    sed -i "s/version=.*$/version=&version;/" "$config_file"
+  else
+    echo "version=&version;" >> "$config_file"
+  fi
 fi
-
-
-
 
 echo ""
 echo "----------------------------------------------------"
