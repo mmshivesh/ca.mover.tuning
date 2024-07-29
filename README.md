@@ -30,13 +30,14 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 
 ## Changelog
 - 2024-07-29
-    - Complete rewrite of file listing functions (find, decide to move..) (R3yn4ld)
+    - [Automatic Array to Cache](https://github.com/R3yn4ld/ca.mover.tuning/tree/automatic-array-to-cache)
+    - Complete rewrite of file listing functions (find, decide to move..) ([R3yn4ld](https://github.com/R3yn4ld))
     - Updated zfs functions getting usage of a pool (R3yn4ld, greetings to ([Freender on forums](https://forums.unraid.net/topic/70783-plugin-mover-tuning/page/61/#comment-1442327)) for pointing out and proposal)
-    - Added cache mode "prefer" smart moving in "Automatic age" mode (R3yn4ld)
-    - Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares (R3yn4ld)
-    - Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected (R3yn4ld)
-    - Turbo write mode forcing improvement to not wake spinners if not needed (R3yn4ld)
-    - UI improvements (R3yn4ld)
+    - Added cache mode "prefer" smart moving in "Automatic age" mode ([R3yn4ld](https://github.com/R3yn4ld))
+    - Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares ([R3yn4ld](https://github.com/R3yn4ld))
+    - Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected ([R3yn4ld](https://github.com/R3yn4ld))
+    - Turbo write mode forcing improvement to not wake spinners if not needed ([R3yn4ld](https://github.com/R3yn4ld))
+    - UI improvements ([R3yn4ld](https://github.com/R3yn4ld))
 
 - 2024-07-10
     - [Unraid 7.0.0 compatibility](https://github.com/R3yn4ld/ca.mover.tuning/tree/unraid-7.0.0-compatibility) ([R3yn4ld](https://github.com/R3yn4ld)): original mover now works with "Move Now button follows plug-in filters" set to off - ([R3yn4ld](https://github.com/R3yn4ld))
