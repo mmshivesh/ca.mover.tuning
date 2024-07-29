@@ -175,7 +175,7 @@ config_file=/boot/config/plugins/&name;/&name;.cfg;
 
 echo "Checking config file"
 if grep -q "version" "$config_file"; then
-  sed -i "s/version=.*$/version=$version/" "$config_file"
+  sed -i "s/version=.*$/version=&version;/" "$config_file"
 else
   echo "version=&version;" >> "$config_file"
 fi
