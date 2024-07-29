@@ -173,12 +173,22 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 # Config file
 config_file=/boot/config/plugins/&name;/&name;.cfg;
 
-echo "Checking config file"
+if [[ ! -f "$config_file" ]]; then
+  echo "Creating file $config_file with default configuration."
+  # Create the file with some default values
+  echo 'testmode="yes"' > $config_file
+  echo 'logging="yes"' >> $config_file
+  echo 'movenow="yes"' >> $config_file
+else
+echo "Updating config file version number"
 if grep -q "version" "$config_file"; then
   sed -i "s/version=.*$/version=&version;/" "$config_file"
 else
   echo "version=&version;" >> "$config_file"
 fi
+
+
+
 
 
 echo ""
