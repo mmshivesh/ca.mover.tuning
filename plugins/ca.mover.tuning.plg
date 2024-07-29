@@ -15,58 +15,58 @@
 
 <CHANGES>
 ###2024-07-29
-- Complete rewrite of file listing functions (find, decide to move..) (R3yn4ld)
+- Complete rewrite of file listing functions (find, decide to move..) [R3yn4ld]
 - Internal moving/syncing engine
-- Updated zfs functions getting usage of a pool (R3yn4ld, greetings to Freender on forums for pointing out and proposal)
-- Added cache mode "prefer" smart moving in "Automatic age" mode (R3yn4ld)
-- Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares (R3yn4ld)
-- Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected (R3yn4ld)
-- Turbo write mode forcing improvement to not wake spinners if not needed (R3yn4ld)
-- UI improvements (R3yn4ld)
+- Fix an issue with inaccurate capacity when raid z1 is used. Updated zfs functions getting usage of a pool [Freender]
+- Added cache mode "prefer" smart moving in "Automatic age" mode [R3yn4ld]
+- Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares [R3yn4ld]
+- Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected [R3yn4ld]
+- Turbo write mode forcing improvement to not wake spinners if not needed [R3yn4ld]
+- UI improvements [R3yn4ld]
 
 ###2024-07-10
-- Unraid 7.0.0 compatibility (/ 6.x bug?): original mover now works with "Move Now button follows plug-in filters" set to off (R3yn4ld)
+- Unraid 7.0.0 compatibility (/ 6.x bug?): original mover now works with "Move Now button follows plug-in filters" set to off [R3yn4ld]
 
 ###2024-07-07
-- Unraid 7.0.0 compatibility (R3yn4ld)
+- Unraid 7.0.0 compatibility [R3yn4ld]
 
 ###2024-06-30
-- Automatic age threshold and plugin cleaning (R3yn4ld)
-- Minor spelling corrections and README (Dphelan)
-- Merge share skipfiletypes (Davendsai) (add/merge per share skipfilestype to global skips)
-- Update Mover.tuning.page (Squid)
+- Automatic age threshold and plugin cleaning [R3yn4ld]
+- Minor spelling corrections and README [Dphelan]
+- Merge share skipfiletypes [Davendsai] (add/merge per share skipfilestype to global skips)
+- Update Mover.tuning.page [Squid]
 
 ###2023.12.19
-- Change "while read" lines in age_mover to "while IFS= read -r" to fix trailing white spaces (Swarles)
-- Fix where sometimes mover would not run to mover.old scrip (Swarles)
-- Log if "share.cfg" doesn't exists to help trouble shooting (Swarles)
-- Check for ca.mover.tuning.cfg file and additional logging. (Swarles)
+- Change "while read" lines in age_mover to "while IFS= read -r" to fix trailing white spaces [Swarles]
+- Fix where sometimes mover would not run to mover.old scrip [Swarles]
+- Log if "share.cfg" doesn't exists to help trouble shooting [Swarles]
+- Check for ca.mover.tuning.cfg file and additional logging. [Swarles]
 
 ###2023.08.22
 - Fixed Cron Job entry
-- Modified ignore command to include folders (Swarles)
-- Updated mover cmdline functions (Hugenbdd)
+- Modified ignore command to include folders [Swarles]
+- Updated mover cmdline functions [Hugenbdd]
 
 ###2023.07.03
 - Add check and creation of link to new binary move location. (Allows the plugin to survive a reboot)
-- Fix first time save on scheduler page. (Swarles/Yamraid 6/21)
-- Change "move all" default setting to No to not confuse new installs/users. (Swarles)
-- Custom mover tuning settings for individual shares. Located at “Shares>[click share]>Mover Tuning”. Includes age, size, sparseness, file list, file types, hidden files/directories, move all override. (Swarles 6/2023)
+- Fix first time save on scheduler page. [Swarles/Yamraid 6/21]
+- Change "move all" default setting to No to not confuse new installs/users. [Swarles]
+- Custom mover tuning settings for individual shares. Located at “Shares>[click share]>Mover Tuning”. Includes age, size, sparseness, file list, file types, hidden files/directories, move all override. [Swarles 6/2023]
 
 ###2023.06.21
-- Fix spaces in before script file path (Swarles 6-18-2023)
-- Fix spaces in after script file path (Swarles 6-18-2023)
-- Fix spaces in ignore file list path (Swarles 6-18-2023)
-- Add check before moving to make sure file or directory exists to avoid binary mover lstat error. (DontWorryScro 6-19-2023)
+- Fix spaces in before script file path [Swarles 6-18-2023]
+- Fix spaces in after script file path [Swarles 6-18-2023]
+- Fix spaces in ignore file list path [Swarles 6-18-2023]
+- Add check before moving to make sure file or directory exists to avoid binary mover lstat error. [DontWorryScro 6-19-2023]
 
 ###2023.06.16
 - Fix no empty directories file
-- Fix missing echo statement on hardlinks area. (Foux 6-16-2023)
+- Fix missing echo statement on hardlinks area. [Foux 6-16-2023]
 
 ###2023.06.15
 - Delete empty directories
-- Add Softlink for binary mover file change if on 6.12 RC8 in install script. (CS01-HS Found 6/13)
-- Add function for compatibility with RC8+ with zfs % full (a632079 - 6/3)
+- Add Softlink for binary mover file change if on 6.12 RC8 in install script. [CS01-HS Found 6/13]
+- Add function for compatibility with RC8+ with zfs % full [a632079 - 6/3]
    
 ###2023.05.23
 - Fixed Hardlinks issue.  
