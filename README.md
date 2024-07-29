@@ -32,7 +32,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 - 2024-07-29
     - [Automatic Array to Cache](https://github.com/R3yn4ld/ca.mover.tuning/tree/automatic-array-to-cache)
     - Complete rewrite of file listing functions (find, decide to move..) ([R3yn4ld](https://github.com/R3yn4ld))
-    - Updated zfs functions getting usage of a pool (R3yn4ld, greetings to ([Freender on forums](https://forums.unraid.net/topic/70783-plugin-mover-tuning/page/61/#comment-1442327)) for pointing out and proposal)
+    - [Fix an issue with inaccurate capacity when raid z1 is used](https://github.com/R3yn4ld/ca.mover.tuning/pull/9/) Updated zfs functions getting usage of a pool [Freender](https://github.com/freender)
     - Added cache mode "prefer" smart moving in "Automatic age" mode ([R3yn4ld](https://github.com/R3yn4ld))
     - Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares ([R3yn4ld](https://github.com/R3yn4ld))
     - Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected ([R3yn4ld](https://github.com/R3yn4ld))
