@@ -176,7 +176,9 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 # Config file
 config_file=/boot/config/plugins/&name;/&name;.cfg;
 
-[[ $(cat $config_file | wc -l) -eq 1 ]] && rm $config_file
+if [[ $(cat $config_file | wc -l) -eq 1 ]]; then
+  rm $config_file
+fi
 
 if [[ ! -f "$config_file" ]]; then
   echo "Creating file $config_file with default configuration."
