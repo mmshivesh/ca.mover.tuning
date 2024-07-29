@@ -44,7 +44,7 @@ function updateCron() {
 }
 
 function moveNow() {
-	$.post("/plugins/ca.mover.tuning/moveNow.php");
+	$.post("/plugins/ca.mover.tuning/mover.php crond start");
 }
 
 function updateScreenMoverTuningSettings(option,slow) {
@@ -96,23 +96,6 @@ Disable Mover running on a schedule:
 *Note that setting this to yes effectively disables this plugin
 
 > This will prevent mover from running at the schedule set in Mover Settings.  You will only be able to run mover by manually invoking it.
-
-<div markdown="1" id="moverTuningSettings">
-Priority for mover process
-: <select name='moverNice' size='1' class='narrow'>
-<?=mk_option($cfg['moverNice'],"0","Normal")?>
-<?=mk_option($cfg['moverNice'],"5","Low")?>
-<?=mk_option($cfg['moverNice'],"19","Very Low")?>
-</select>
-
-Priority for disk I/O
-: <select name='moverIO' size='1' class='narrow'>
-<?=mk_option($cfg['moverIO'],"-c 2 -n 0","Normal")?>
-<?=mk_option($cfg['moverIO'],"-c 2 -n 7","Low")?>
-<?=mk_option($cfg['moverIO'],"-c 3","Idle")?>
-</select>
-
-> The above two options set the priority for the mover process.  Setting these options may help with circumstances where when mover runs other applications may pause or buffer.  Note that moving the files may take longer when setting these options
 
 Only move at/to this threshold of used cache space:
 : <select name="threshold" size="1" class='narrow'>
@@ -259,6 +242,23 @@ Let scheduled mover run during a parity check / rebuild:
 </select>
 
 > If a parity check or disk rebuild is in progress, this will prevent mover from running
+
+<div markdown="1" id="moverTuningSettings">
+Priority for mover process
+: <select name='moverNice' size='1' class='narrow'>
+<?=mk_option($cfg['moverNice'],"0","Normal")?>
+<?=mk_option($cfg['moverNice'],"5","Low")?>
+<?=mk_option($cfg['moverNice'],"19","Very Low")?>
+</select>
+
+Priority for disk I/O
+: <select name='moverIO' size='1' class='narrow'>
+<?=mk_option($cfg['moverIO'],"-c 2 -n 0","Normal")?>
+<?=mk_option($cfg['moverIO'],"-c 2 -n 7","Low")?>
+<?=mk_option($cfg['moverIO'],"-c 3","Idle")?>
+</select>
+
+> The above two options set the priority for the mover process.  Setting these options may help with circumstances where when mover runs other applications may pause or buffer.  Note that moving the files may take longer when setting these options
 
 Force turbo write on during mover:
 : <select name='enableTurbo' size='1' class='narrow'>

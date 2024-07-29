@@ -502,6 +502,7 @@ createFilteredFilelist (){
 
         if [ -d "$SHAREPATH" ] && ( [ $SHAREUSECACHE != "only" ] || ( [ $SHAREUSECACHE = "only" ] && [ $REPAIRPRIMARYSHARES = "yes" ] )) ; then
             #mvlogger "FINDSTR is: $FINDSTR"
+            mvlogger "Filtering $SHARENAME files... (can take a moment)"
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
         fi
@@ -570,7 +571,7 @@ decideMoveActions () {
                 filepath = cachepath
 
                 # Make decision to move or keep:
-                action = ($3 != "only" && ($3 == "prefer" && (pool_sums[$1] >= $5 && AGE == -1) || AGE >= 0)) ? "move" : "keep"
+                action = ($3 != "only" && (($3 == "prefer" || $3 == "yes") && (pool_sums[$1] >= $5 && AGE == -1) || AGE >= 0) || $3 == "no" ) ? "move" : "keep"
 
                 if (action == "keep")  {
                     source = "/mnt/" $1
@@ -656,7 +657,7 @@ decideMoveActions () {
 
     # Print stats
     if [ $TOTALFILES -gt 0 ]; then
-        mvlogger "A total of $TOTALFILES files representing $TOTALSIZE bytes ($(convert_bytes $TOTALSIZE)) will be moved:"
+        mvlogger "A total of $TOTALFILES files representing $TOTALSIZE bytes ($(convert_bytes $TOTALSIZE)) will be moved/synced:"
         if [ $TOTALCACHEFILES -gt 0 ]; then
             # Read data line by line using while loop
             while IFS="|" read -r CACHEPOOLNAME CACHEFILES CACHESIZE ARRAYFILES ARRAYSIZE; do
@@ -695,22 +696,18 @@ processTheMoves () {
     # CACHEPOOLNAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|FILESIZE|POOLSUM|THRESHOLD|NBLINKS|INODE|ACTION|FROM|TO|FILEPATH
 
     # Loop through each line in the action list (except those where action is keep), starting by cache and then array
-    for PROCESS_ARRAY in false true; do
-        grep -v "|keep|" "$MOVER_ACTIONLIST" | while IFS="|" read -r CACHEPOOLNAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
+    GREP_CMDS=(
+    "grep '|move|' '$MOVER_ACTIONLIST' | grep -v '|move|/mnt/user0|'"
+    "grep '|move|/mnt/user0|' '$MOVER_ACTIONLIST'"
+    "grep '|sync|' '$MOVER_ACTIONLIST'"
+    )
+
+    for GREP_CMD in "${GREP_CMDS[@]}"; do
+        eval $GREP_CMD | while IFS="|" read -r CACHEPOOLNAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
                 echo "Soft Stop requested"
                 mvlogger "Soft Stopping requested"
                 break
-            fi
-
-            # Skip header line
-            if [ "$ACTION" = "ACTION" ]; then
-                continue
-            fi
-
-            # Skip if file file not stored on the storage we proceed
-            if [ "$PROCESS_ARRAY" = false ] && [ "$SOURCE" = "/mnt/user0" ] || [ "$PROCESS_ARRAY" = true ] && [ "$SOURCE" != "/mnt/user0" ]; then
-                continue
             fi
 
             # Skip filesize = 0 (hardlinks already handeld in a previous loop)
@@ -736,7 +733,7 @@ processTheMoves () {
                 mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 # Finalize RSYNC_CMD
                 RSYNC_CMD+=" --remove-source-files"   
-            elif [ "$ACTION" = "sync" ] &&  ([ "$PROCESS_ARRAY" = true ] && [ $SOURCE = "/mnt/user0" ]) ||  ([ "$PROCESS_ARRAY" = false ] && [ $SOURCE != "/mnt/user0" ]) ; then 
+            elif [ "$ACTION" = "sync" ] ; then 
                 # Some verbosity
                 GUI_ACTION="Synchronizing to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
@@ -758,7 +755,6 @@ processTheMoves () {
             fi
             
             moverStatusWrite
-
         done
     done
 
@@ -847,8 +843,8 @@ start() {
             mvlogger "Launching before script: $BEFORESCRIPT"
             eval \"$BEFORESCRIPT\"
             mvlogger "Before script finished"
-#        else
-#            mvlogger "Before script file does not exist or is not executable. Skipping."
+        else
+            mvlogger "Before script file does not exist or is not executable. Skipping."
         fi
     fi
 
