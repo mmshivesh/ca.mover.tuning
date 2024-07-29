@@ -243,10 +243,10 @@ getMoverSettings() {
         [ $REPAIRPRIMARYSHARES = "yes" ] && mvlogger "Repair Cache:Only and Cache:No Shares: $REPAIRPRIMARYSHARES"
     fi
 
-    if [ -z $(cfg shareTreshold) ]; then
+    if [ -z $(cfg shareThreshold) ]; then
         SHAREPCTLIMIT="NA"
     else
-        SHAREPCTLIMIT=$(cfg shareTreshold)
+        SHAREPCTLIMIT=$(cfg shareThreshold)
         mvlogger "Share threshold: $SHAREPCTLIMIT %"
     fi
 
@@ -757,7 +757,7 @@ processTheMoves () {
     done
 
     if grep "|sync|" $MOVER_ACTIONLIST | grep -vq "|sync|/mnt/user0" ; then
-        EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:10:2}:${NOW:11:2}:${NOW:13:2}" +%s)
+        EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:11:2}:${NOW:13:2}" +%s)
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then
             sed -i "s/lastCacheSync=.*$/lastCacheSync=$EPOCH/" "$MOVERTUNINGCFGFILE"
         else
@@ -768,7 +768,7 @@ processTheMoves () {
 
     if [ $ENABLETURBO = "yes" ] ; then
         turbo_write_mode=$(cat /var/local/emhttp/var.ini | grep "md_write_method=" | cut -d'"' -f2)
-        mvlogger "Restoring original turbo write mode $( [ $turbo_write_mode != "auto" ] && echo "Auto (read/modify/write)" || [ $turbo_write_mode -eq 1 ] && echo "Turbo writes (Reconstruct)" || echo "Read/modify/write" )"
+        mvlogger "Restoring original turbo write mode $( ( [ $turbo_write_mode = "auto" ] && echo "Auto (read/modify/write)" ) || ( [ $turbo_write_mode -eq 1 ] && echo "Turbo writes (Reconstruct)" ) || echo "Read/modify/write" )"
         [ $TESTMODE != "yes" ] && /usr/local/sbin/mdcmd set md_write_method $turbo_write_mode
     fi
 }
