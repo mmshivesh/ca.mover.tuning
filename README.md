@@ -29,7 +29,7 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-- 2024-07-29b
+- 2024-07-30
     - [Various bug fixes](https://github.com/R3yn4ld/ca.mover.tuning/tree/2024-07-29-various-bug-fixes) [R3yn4ld](https://github.com/R3yn4ld) [Freender](https://github.com/freender)
 
 - 2024-07-29
