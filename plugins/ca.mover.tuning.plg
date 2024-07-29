@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.07.29.b">
-<!ENTITY md5       "9ad42a2deda99912c4eb35c617ce9023">
+<!ENTITY version   "2024.07.29.c">
+<!ENTITY md5       "abffb819b1e5bd2cad17a778f98437e8">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -14,6 +14,9 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
+###2024-07-29c
+- Repair broken installation from previous bugs [R3yn4ld]
+
 ###2024-07-29b
 - Various bug fixes [R3yn4ld], [Freender]
 
@@ -172,6 +175,8 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 
 # Config file
 config_file=/boot/config/plugins/&name;/&name;.cfg;
+
+[[ $(cat $config_file | wc -l) -eq 1 ]] && rm $config_file
 
 if [[ ! -f "$config_file" ]]; then
   echo "Creating file $config_file with default configuration."
