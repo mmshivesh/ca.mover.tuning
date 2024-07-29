@@ -7,7 +7,7 @@
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
-<!ENTITY branch    "master">
+<!ENTITY branch    "Various-bug-fixes">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
 ]>
 
@@ -174,44 +174,10 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover
 config_file=/boot/config/plugins/&name;/&name;.cfg;
 
 echo "Checking config file"
-# Check if the file exists
-if [[ ! -f "$config_file" ]]; then # File does not exist, create it
-  cat <<EOF > "$config_file"
-#!/bin/bash
-advancedFilters="no"
-advancedOptions="no"
-afterScript=""
-age="yes"
-beforeScript=""
-ctime="no"
-daysold="-1"
-enableTurbo="yes"
-filelistf="no"
-filetypesf="no"
-force="no"
-ignoreHidden="no"
-lastCacheSync="0"
-logging="yes"
-movenow="yes"
-moverDisabled="no"
-moverIO="-c 2 -n 0"
-moverNice="0"
-omovercfg="no"
-parity="yes"
-repairPrimary="no"
-sizef="no"
-sparsnessf="no"
-synchronizeCache="yes"
-testmode="yes"
-threshold="90"
-"version=$version"
-EOF
-  echo "Created file $config_file with default configuration."
-else # Update the existing file
-  if grep -q "version" "$config_file"; then
-    sed -i "s/version=.*$/version=$version/" "$config_file"
-  else
-    echo "version=$version" >> "$config_file"
+if grep -q "version" "$config_file"; then
+  sed -i "s/version=.*$/version=$version/" "$config_file"
+else
+  echo "version=$version" >> "$config_file"
 fi
 
 
