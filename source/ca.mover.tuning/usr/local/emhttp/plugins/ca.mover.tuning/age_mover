@@ -429,11 +429,20 @@ createFilteredFilelist (){
             fi
         fi
 
+
+        #Get the size threshold in bytes
+        if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
+            CACHESIZETHRESH=$(( $(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}') * $SELECTEDTHRESHOLD /100))
+        else
+            CACHESIZETHRESH=$(( $(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1) * $SELECTEDTHRESHOLD /100))
+        fi
+
         #Add Size to find string
         if [ $CACHESIZETHRESH -gt 0 ] && [ "$SIZE" -gt 0 ]; then
             mvlogger "Adding Size: ${SIZE}"
             FINDSTR+=" -size +${SIZE}M"
         fi
+
 
         #Add Ignore Hidden Files to find string
         if [ $CACHESIZETHRESH -gt 0 ] && [ "$HIDDENFILES" == "yes" ]; then
