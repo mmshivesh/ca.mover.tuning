@@ -126,14 +126,31 @@ getMoverSettings() {
         return 1
     fi
 
-    ### Read in default threshold limit.
-    DFTPCTLIMIT=$(cfg threshold)
+    ## Read in default threshold limit.
+    ## [[ ! "$config_file" =~ shareOverrideConfig ]] && ensure that we are not reading share custom settings
+    
+    [[ ! "$config_file" =~ shareOverrideConfig ]] && DFTPCTLIMIT=$(cfg threshold)
+    [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "Default threshold: $DFTPCTLIMIT %"
 
-    mvlogger "Default threshold: $DFTPCTLIMIT"
-
+    # Read other thresholds
+    if [ $(cfg omovercfg) != "yes" ]; then
+        #mvlogger "No Original Mover Threshold Percent Supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && OMOVERTHRESH=""
+    else
+        OMOVERTHRESH=$(cfg omoverthresh)
+        [ ! -z $OMOVERTHRESH ] && mvlogger "Cache threshold to Move all Cache-Yes shares to array: $OMOVERTHRESH %"
+    fi
+    if [ -z $(cfg shareThreshold) ]; then
+        SHAREPCTLIMIT="NA"
+    else
+        SHAREPCTLIMIT=$(cfg shareThreshold)
+        mvlogger "Share threshold: $SHAREPCTLIMIT %"
+    fi
+    
+    # Read filters parameters
     if [ -z $(cfg age) ]; then
-        mvlogger "No Age argument supplied"
-        AGE=0
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Age argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && AGE=0
     else
         if [ $(cfg age) = "yes" ]; then
             AGE=$(cfg daysold)
@@ -150,7 +167,7 @@ getMoverSettings() {
 
     if [ -z $(cfg afterScript) ]; then
         #mvlogger "No After Script argument supplied"
-        AFTERSCRIPT=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && AFTERSCRIPT=""
     else
         AFTERSCRIPT=$(cfg afterScript)
         mvlogger "After script: $AFTERSCRIPT"
@@ -158,32 +175,32 @@ getMoverSettings() {
 
     if [ -z $(cfg beforeScript) ]; then
         #mvlogger "No Before Script argument supplied"
-        BEFORESCRIPT=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && BEFORESCRIPT=""
     else
         BEFORESCRIPT=$(cfg beforeScript)
         mvlogger "Before script: $BEFORESCRIPT"
     fi
 
     if [ -z $(cfg ctime)  ]; then
-        mvlogger "No CTIME argument supplied"
-        CTIMEA=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No CTIME argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && CTIMEA=""
     else
         CTIMEA=$(cfg ctime)
         [ $CTIMEA = "yes" ] && mvlogger "CTIME: $CTIMEA"
     fi
 
     if [ -z $(cfg enableTurbo) ]; then
-        mvlogger "No Turbo Mode argument supplied"
-        ENABLETURBO=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Turbo Mode argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && ENABLETURBO=""
     else
         ENABLETURBO=$(cfg enableTurbo)
         [ $ENABLETURBO = "yes" ] && mvlogger "Enable Turbo: $ENABLETURBO"
     fi
 
     if [ -z $(cfg filelistf) ]; then
-        mvlogger "No Skipfiles argument supplied"
-        SKIPFILESLIST=""
-        SKIPFOLDERSLIST=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Skipfiles argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SKIPFILESLIST=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SKIPFOLDERSLIST=""
     else
         if [ $(cfg filelistf) = "yes" ]; then
             SKIPFILESPATH=$(cfg filelistv)
@@ -206,8 +223,8 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg filetypesf) ]; then
-        mvlogger "No Skip File Types argument supplied"
-        SKIPFILETYPES=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Skip File Types argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SKIPFILETYPES=""
     else
         if [ $(cfg filetypesf) = "yes" ]; then
             ###echo "Skipfiletypes supplied"
@@ -220,39 +237,24 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg ignoreHidden) ]; then
-        mvlogger "No Ignore Hidden Files argument supplied"
-        HIDDENFILES=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Ignore Hidden Files argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && HIDDENFILES=""
     else
         HIDDENFILES=$(cfg ignoreHidden)
         [ $HIDDENFILES = "yes" ] && mvlogger "Ignore Hidden Files: $HIDDENFILES"
     fi
     
-    if [ $(cfg omovercfg) != "yes" ]; then
-        #mvlogger "No Original Mover Threshold Percent Supplied"
-        OMOVERTHRESH=""
-    else
-        OMOVERTHRESH=$(cfg omoverthresh)
-        [ ! -z $OMOVERTHRESH ] && mvlogger "Cache threshold to Move all Cache-Yes shares to array: $OMOVERTHRESH %"
-    fi
-
     if [ -z $(cfg repairPrimary) ]; then
-        mvlogger "No Repair argument provided"
-        REPAIRPRIMARYSHARES=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Repair argument provided"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && REPAIRPRIMARYSHARES=""
     else
         REPAIRPRIMARYSHARES=$(cfg repairPrimary)
         [ $REPAIRPRIMARYSHARES = "yes" ] && mvlogger "Repair Cache:Only and Cache:No Shares: $REPAIRPRIMARYSHARES"
     fi
 
-    if [ -z $(cfg shareThreshold) ]; then
-        SHAREPCTLIMIT="NA"
-    else
-        SHAREPCTLIMIT=$(cfg shareThreshold)
-        mvlogger "Share threshold: $SHAREPCTLIMIT %"
-    fi
-
     if [ -z $(cfg sizef) ]; then
-        mvlogger "No Size argument supplied"
-        SIZE=0
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Size argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SIZE=0
     else
         if [ $(cfg sizef) = "yes" ]; then
             SIZE=$(cfg sizeinM)
@@ -263,8 +265,8 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg sparsnessf) ]; then
-        mvlogger "No Sparness argument supplied"
-        SPARSENESS=0
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Sparness argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SPARSENESS=0
     else
         if [ $(cfg sparsnessf) = "yes" ]; then
             SPARSENESS=$(cfg sparsnessv)
@@ -275,8 +277,8 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg synchronizeCache) ]; then
-        mvlogger "No Synchronize Cache argument provided"
-        SYNCHRONIZECACHE=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Synchronize Cache argument provided"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && SYNCHRONIZECACHE=""
     else
         SYNCHRONIZECACHE=$(cfg synchronizeCache)
         if [ $SYNCHRONIZECACHE = "yes" ]; then
@@ -287,8 +289,8 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg testmode) ]; then
-        mvlogger "No Test Mode argument supplied"
-        TESTMODE=""
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && mvlogger "No Test Mode argument supplied"
+        [[ ! "$config_file" =~ shareOverrideConfig ]] && TESTMODE=""
     else
         TESTMODE=$(cfg testmode)
         [ $TESTMODE = "yes" ] && mvlogger "Test Mode: $TESTMODE"
@@ -327,8 +329,10 @@ createFilteredFilelist (){
             SHARETUNINGFILE="/boot/config/plugins/ca.mover.tuning/shareOverrideConfig/$SHARENAME.cfg"
             if grep -qs 'moverOverride="yes"' $SHARETUNINGFILE; then
                 overrideFlag=1
-                mvlogger "---------- Settings override for $SHARENAME: ----------"
+                mvlogger  "Settings override:"
+                mvlogger  "------------------"
                 getMoverSettings $SHARETUNINGFILE
+                mvlogger "$(titleLine "" '-')"
             fi
         fi
 
@@ -505,7 +509,9 @@ createFilteredFilelist (){
         if [ $overrideFlag = 1 ]; then
             overrideFlag=0
             #Get Mover Tuning Settings
-            mvlogger "$(titleLine "Global settings" '-')"
+            mvlogger "$(titleLine "" '-')"
+            mvlogger "Restore global settings"
+            mvlogger "-----------------------"
             getMoverSettings $MOVERTUNINGCFGFILE
         fi
     done
