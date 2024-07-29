@@ -23,7 +23,7 @@ $plugin='ca.mover.tuning';
 $shareName = $_GET['name'];
 $shareCFG = "/boot/config/plugins/$plugin/shareOverrideConfig/$shareName.cfg";
 $cfg = parse_share_cfg($plugin, $shareName);
-$overrideDisabled = ($cfg['moverOverride'] != "yes") ? "no" : "yes";
+$overrideEnabled = ($cfg['moverOverride'] != "yes") ? "no" : "yes";
 $ageDisabled = ($cfg['age'] != "yes") ? "disabled" : "";
 $sizefDisabled = ($cfg['sizef'] != "yes") ? "disabled" : "";
 $sparsenessfDisabled = ($cfg['sparsenessf'] != "yes") ? "disabled" : "";
@@ -55,7 +55,7 @@ function updateScreenMoverTuning(option,slow) {
   }
 }
 $(function() {
-  updateScreenMoverTuning('<? echo $overrideDisabled ?>');
+  updateScreenMoverTuning('<? echo $overrideEnabled ?>');
 });
 </script>
 
@@ -63,11 +63,11 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$shareCFG?>">
 
 <? if ($shareName != ""): ?>
-<? if (strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="no"') !== false): ?>
+<? if (strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="no"') !== false || strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="only"') !== false): ?>
 <div markdown="1" class="shade-<?=$display['theme']?>">
 _(Mover Tuning settings not available for this share.)_
 </div>
-<? elseif (strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="yes"') !== false): ?>
+<? elseif (strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="yes"') !== false || strpos(file_get_contents("/boot/config/shares/$shareName.cfg"), 'shareUseCache="prefer"') !== false): ?>
 
 <div markdown="1" class="shade-<?=$display['theme']?>">
 _(Override Mover Tuning settings for this share)_:
@@ -79,8 +79,16 @@ _(Override Mover Tuning settings for this share)_:
 <!--:mover_tuning_override_help:-->
 >Select **Yes** to override the primary Mover Tuning settings for this share.
 
-
 <div markdown="1" id="moverSettings">
+_(Only move at/to this threshold of used cache space)_:
+: <select name="shareThreshold" size="1" class='narrow'>
+<?for ($t=0;$t<100;$t+=5):?>
+<?=mk_option($cfg['shareThreshold'], $t, "$t %")?>
+<?endfor;?>
+</select>
+
+> Set to the amount of disk space used on the cache drive for mover to run.
+
 _(Move files off cache based on age)_:
 : <select name="age" onchange='$(".myage").toggleAttr("disabled")'>
   <?= mk_option($cfg['age'], 'no', 'No') ?>
@@ -233,7 +241,7 @@ _(Move All from Cache-Yes shares when disk is above a certain percentage)_:
 _(Move **ALL** files from current pool (wont use mover settings))_:
 : <input type="button" id="MoveShare" value="Move Now" onclick="moveShareNow()">
 </div>
-> Clicking the **"Move Now"** button will invoke the mover for only this share. It will move the enitre share to the array ignoring any mover settings.
+> Clicking the **"Move Now"** button will invoke the mover for only this share. It will move the entire share to the array ignoring any mover settings.
 
 <? else: ?>
 <div markdown="1" class="shade-<?=$display['theme']?>">

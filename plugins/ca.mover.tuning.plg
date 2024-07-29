@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.07.10">
-<!ENTITY md5       "e198f4bcbbee3fcafbe4a23b170aad16">
+<!ENTITY version   "2024.07.29">
+<!ENTITY md5       "98865e4f11ff1a99dfcbf2e29378ca96">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -14,6 +14,16 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="music" min="6.9.0-rc2">
 
 <CHANGES>
+###2024-07-29
+- Complete rewrite of file listing functions (find, decide to move..) (R3yn4ld)
+- Internal moving/syncing engine
+- Updated zfs functions getting usage of a pool (R3yn4ld, greetings to Freender on forums for pointing out and proposal)
+- Added cache mode "prefer" smart moving in "Automatic age" mode (R3yn4ld)
+- Added option to "repair" Cache:Only (moving everything on share to cache) and Cache:No (moving everything on share to array) shares (R3yn4ld)
+- Added option to synchronize Cache:Yes and Cache:Prefer shares to array so data are parity protected (R3yn4ld)
+- Turbo write mode forcing improvement to not wake spinners if not needed (R3yn4ld)
+- UI improvements (R3yn4ld)
+
 ###2024-07-10
 - Unraid 7.0.0 compatibility (/ 6.x bug?): original mover now works with "Move Now button follows plug-in filters" set to off (R3yn4ld)
 
@@ -133,22 +143,22 @@ if [[ -e /usr/local/sbin/mover ]]; then
 elif [[ -e /usr/local/bin/mover ]]; then
   if [[ ! -f /usr/local/bin/mover.old ]]; then 
     echo "Backing up current /usr/local/bin/mover binary "
-    mv /usr/local/bin/mover /usr/local/bin/mover.old
+    mv /usr/local/bin/mover /usr/local/sbin/mover.old
   fi
 fi
 echo "Installing tuned mover script"
 cp /usr/local/emhttp/plugins/&name;/mover /usr/local/sbin/mover
 
-if [[ -e /usr/local/bin/move ]]; then
-  echo "Creating Soft link for 6.12 RC8 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
-  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
-  ln -s /usr/local/bin/move /usr/local/sbin/move
-elif [[ -e /usr/libexec/unraid/move ]]; then
-  echo "Creating Soft link for 7.0 or newer since /usr/local/sbin/move is now located in /usr/libexec/unraid/move"
-  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
-  ln -s /usr/libexec/unraid/move /usr/local/sbin/move
-  #sed 's|ionice $ioLevel nice -n $niceLevel /usr/local/sbin/mover.old $options|ionice $ioLevel nice -n $niceLevel /usr/local/sbin/mover.old start $options\g'
-fi
+# Not needed anymore as using internal moving engine
+#if [[ -e /usr/local/bin/move ]]; then
+#  echo "Creating Soft link for 6.12 RC8 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
+#  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
+#  ln -s /usr/local/bin/move /usr/local/sbin/move
+#elif [[ -e /usr/libexec/unraid/move ]]; then
+#  echo "Creating Soft link for 7.0 or newer since /usr/local/sbin/move is now located in /usr/libexec/unraid/move"
+#  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
+#  ln -s /usr/libexec/unraid/move /usr/local/sbin/move
+#fi
 
 echo "Fixing permissions"
 chmod +x /usr/local/sbin/mover
@@ -156,6 +166,50 @@ chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/*.php
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/age_mover 
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/mover
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/share_mover 
+
+# Config file
+config_file=/boot/config/plugins/&name;/&name;.cfg;
+# Default configuration values
+defaults=(
+"version=$version"
+moverDisabled="no"
+moverNice="0"
+moverIO="-c 2 -n 0"
+threshold="90"
+age="yes"
+daysold="-1"
+ctime="no"
+sizef="no"
+sparsnessf="no"
+filelistf="no"
+filetypesf="no"
+parity="yes"
+enableTurbo="yes"
+logging="yes"
+force="no"
+ignoreHidden="no"
+beforeScript=""
+afterScript=""
+omovercfg="no"
+movenow="yes"
+testmode="yes"
+repairPrimary="no"
+synchronizeCache="no"
+lastCacheSync=0
+)
+
+# Check if the file exists
+if [[ ! -f "$config_file" ]]; then
+  # Create the file with default values
+  echo "${defaults[@]}" > "$config_file"
+  echo "Created file $config_file with default configuration."
+  exit 0
+fi
+  # Update the existing file
+  sed -i "s/version=.*$/version=$version/" "$config_file"
+fi
+
+
 
 echo ""
 echo "----------------------------------------------------"
