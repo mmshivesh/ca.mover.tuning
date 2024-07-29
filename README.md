@@ -31,7 +31,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 ## Changelog
 - 2024-07-30
     - [Various bug fixes](https://github.com/R3yn4ld/ca.mover.tuning/tree/2024-07-29-various-bug-fixes) [R3yn4ld](https://github.com/R3yn4ld) [Freender](https://github.com/freender)
-    - [Enhance internal mover function](https://github.com/R3yn4ld/ca.mover.tuning/tree/enhance-processthemove-function) [R3yn4ld](https://github.com/R3yn4ld)
+    - [Enhance internal mover function](https://github.com/R3yn4ld/ca.mover.tuning/tree/Enhance-processTheMove-function) [R3yn4ld](https://github.com/R3yn4ld)
 
 - 2024-07-29
     - [Automatic Array to Cache](https://github.com/R3yn4ld/ca.mover.tuning/tree/automatic-array-to-cache)
