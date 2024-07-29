@@ -2,7 +2,7 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.07.29.c">
+<!ENTITY version   "2024.07.30.0000">
 <!ENTITY md5       "abffb819b1e5bd2cad17a778f98437e8">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
@@ -14,8 +14,8 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###2024-07-29c
-- Repair broken installation from previous bugs [R3yn4ld]
+###2024-07-30
+- Update to repair broken installation from previous bugs [R3yn4ld]
 
 ###2024-07-29b
 - Various bug fixes [R3yn4ld], [Freender]
