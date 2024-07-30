@@ -373,6 +373,12 @@ createFilteredFilelist (){
             mvlogger "Skipping processing for /mnt/cache"
             continue  # Move to the next iteration of the loop
         fi
+        # Do not process this pool if path does not exist
+        if [ ! -d "$SHAREPATH" ]; then
+            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing /boot/config/shares/$SHARECFG if not."
+            mvlogger "Skipping."
+            continue  # Move to the next iteration of the loop
+        fi
 
         #Find the current percent of used size of pool.
         if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
