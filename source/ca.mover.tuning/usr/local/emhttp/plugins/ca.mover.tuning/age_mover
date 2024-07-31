@@ -33,6 +33,7 @@
 
 PIDFILE="/var/run/mover.pid"
 SOFTSTOPFILE="/var/run/moversoft.stop"
+SOFTSTOP_ACK=false
 UNRAIDCFGFILE="/boot/config/share.cfg"
 MOVERTUNINGCFGFILE="/boot/config/plugins/ca.mover.tuning/ca.mover.tuning.cfg"
 LOGLEVEL=1
@@ -317,6 +318,10 @@ createFilteredFilelist (){
     # create a file containing the list off all shareUseCache yes or prefer whith this format:
     echo "CACHEPOOLNAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|CACHESIZETRESH|FILESIZE|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
     for SHARECFG in /boot/config/shares/*; do
+        if [ -e $SOFTSTOPFILE ]; then
+            [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+            return
+        fi
         overrideFlag=0
         globalSkipFileTypes=$SKIPFILETYPES
 
@@ -371,6 +376,12 @@ createFilteredFilelist (){
         # Do not process this pool if Share path is /mnt/cache
         if [ "$SHAREPATH" = "/mnt/cache" ]; then
             mvlogger "Skipping processing for /mnt/cache"
+            continue  # Move to the next iteration of the loop
+        fi
+        # Do not process this pool if path does not exist
+        if [ ! -d "$SHAREPATH" ]; then
+            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing /boot/config/shares/$SHARECFG if not."
+            mvlogger "Skipping."
             continue  # Move to the next iteration of the loop
         fi
 
@@ -524,6 +535,11 @@ createFilteredFilelist (){
 }
 
 decideMoveActions () {
+    if [ -e $SOFTSTOPFILE ]; then
+        [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+        return
+    fi
+
     ## Loop Filtered Filelist and for each file decide to move to/from the array
     mvlogger "$(titleLine 'ANALYSING MOVING ACTIONS' '*')"
     mvlogger "Deciding the action (move/sync/keep) for each file. There are $(grep "/mnt" $FILTERED_FILELIST | wc -l) files, it can take a while..."
@@ -531,8 +547,11 @@ decideMoveActions () {
     ## Proceed with files
     # Fields: $1:CACHEPOOLNAME $2:SHARENAME $3:SHAREUSECACHE $4:MODIFICATIONTIME $5:CACHESIZETRESH 
     # $6:FILESIZE $7SPARSENESS $8:NBLINKS $9:INODE $10:FILEPATH
-    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v LASTCACHESYNC=$LASTCACHESYNC '
+    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" '
         BEGIN {
+            if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
+                exit 1
+            }
             # Initialize previous inode and dictionary for pool sums
             previous_inode = 0
 
@@ -541,6 +560,9 @@ decideMoveActions () {
         }
 
         NR > 1 { # Main loop, skip header line
+            if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
+                exit 1
+            }
 
             # Handle hardlink size
             if ($8 > 1) {
@@ -618,6 +640,10 @@ decideMoveActions () {
             printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $2, $3, $4, $6, pool_sums[$1], $5, $8, $9, action, source, destination, path_in_share
         }
         END {
+            if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
+                exit 1
+            }
+
             # Write statistics header line
             printf "CACHEPOOLNAME|FILES_FROM_CACHE|SIZE_FROM_CACHE|FILES_FROM_ARRAY|SIZE_FROM_ARRAY\n" >> "'"${STATS_FILE}"'"
 
@@ -644,6 +670,10 @@ decideMoveActions () {
             printf("TOTAL|%d|%d|%d|%d\n", total_files_from_cache, total_size_from_cache, total_files_from_array, size_from_array) >> "'"${STATS_FILE}"'"
 
     }' "$FILTERED_FILELIST" > $MOVER_ACTIONLIST
+    if [ -e $SOFTSTOPFILE ]; then
+        [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+        return
+    fi
 
     ## Printing some stats
     TOTALCACHEFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 2)
@@ -662,7 +692,6 @@ decideMoveActions () {
             # Read data line by line using while loop
             while IFS="|" read -r CACHEPOOLNAME CACHEFILES CACHESIZE ARRAYFILES ARRAYSIZE; do
                 if [ -e $SOFTSTOPFILE ]; then
-                    echo "Soft Stop requested"
                     mvlogger "Soft Stopping requested"
                     break
                 fi
@@ -687,6 +716,11 @@ decideMoveActions () {
 
 # Internal move engine
 processTheMoves () {
+    if [ -e $SOFTSTOPFILE ]; then
+        [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+        return
+    fi
+
     mvlogger "$(titleLine 'LET THE MOVING SHOW BEGIN !' '*')"
     if [ $ENABLETURBO = "yes" ] ; then
         mvlogger "Forcing turbo write on"
@@ -705,9 +739,8 @@ processTheMoves () {
     for GREP_CMD in "${GREP_CMDS[@]}"; do
         eval $GREP_CMD | while IFS="|" read -r CACHEPOOLNAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
-                echo "Soft Stop requested"
-                mvlogger "Soft Stopping requested"
-                break
+                [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+                return
             fi
 
             # Skip filesize = 0 (hardlinks already handeld in a previous loop)
@@ -849,12 +882,10 @@ start() {
     fi
 
     # Proceed with filter and create filtered filelist and action filelist
-    createFilteredFilelist
-    decideMoveActions
+    [ ! -e $SOFTSTOPFILE ] && createFilteredFilelist
+    [ ! -e $SOFTSTOPFILE ] && decideMoveActions
     # And now.. we move! ... if needed
-    if [ $TOTALFILES -gt 0 ]; then
-        processTheMoves
-    fi
+    [ ! -e $SOFTSTOPFILE ] &&  [ $TOTALFILES -gt 0 ] && processTheMoves
 
     #Write the final status just for sure
     moverStatusWrite
@@ -938,3 +969,4 @@ status)
 esac
 
 # That's all folks :)
+
