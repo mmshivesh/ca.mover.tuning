@@ -791,7 +791,7 @@ processTheMoves () {
         done
     done
 
-    if grep "|sync|" $MOVER_ACTIONLIST | grep -vq "|sync|/mnt/user0" ; then
+    if grep "|sync|" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then
             sed -i "s/lastCacheSync=.*$/lastCacheSync=$EPOCH/" "$MOVERTUNINGCFGFILE"
