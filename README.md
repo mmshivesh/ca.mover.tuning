@@ -29,8 +29,12 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
+- Next version:
+    -[Fix default Settings handling causing a "Unary operator" bug](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-unary-operator-bug) [R3yn4ld](https://github.com/R3yn4ld)
+
 - 2024-08-01
     - [Deleted share error control and SoftStop improvement](https://github.com/R3yn4ld/ca.mover.tuning/tree/deleted-share-error-control) [R3yn4ld](https://github.com/R3yn4ld)
+
 - 2024-07-30
     - [Various bug fixes](https://github.com/R3yn4ld/ca.mover.tuning/tree/2024-07-29-various-bug-fixes) [R3yn4ld](https://github.com/R3yn4ld) [Freender](https://github.com/freender)
     - [Enhance internal mover function](https://github.com/R3yn4ld/ca.mover.tuning/tree/Enhance-processTheMove-function) [R3yn4ld](https://github.com/R3yn4ld)
@@ -75,9 +79,20 @@ You'll find its settings within Settings - [Scheduler](https://docs.unraid.net/u
 
 ## Usage
 
-After installation, the default settings are set so that there is no difference from Unraid's normal mover operations.
+After installation, the default settings are set so that the plugin will be in test mode. You may check /tmp/ca.mover.tuning/Mover_actions_date.list to see if your settings are correct and if the mover will move/keep/sync the files as expected.
 
-See the [_Mover Tuning_ thread on the Unraid support forum](https://forums.unraid.net/topic/70783-plugin-mover-tuning/) for more details and discussions.
+There are several commands that can be launched from terminal or a script:
+/usr/local/emhttp/plugins/ca.mover.tuning/age_mover start
+To start age mover (the internal moving engine) with the settings you set in the GUI
+
+/usr/local/emhttp/plugins/ca.mover.tuning/age_mover softstop
+To cleanly exit loops (Filtering, Deciding, Moving) and age_mover. While moving/syncing, the ongoing file transfer is not interrupted and softstop occurs after actual file operation.
+
+/usr/local/emhttp/plugins/ca.mover.tuning/age_mover stop
+To kill all the process (can lead to unfinished or corrupted file transferts while moving).
+
+
+See the [Mover Tuning_ thread on the Unraid support forum](https://forums.unraid.net/topic/70783-plugin-mover-tuning/) for more details and discussions.
 
 ## Thanks
 
