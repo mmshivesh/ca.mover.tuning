@@ -30,7 +30,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 
 ## Changelog
 - Next version:
-    -[Fix default Settings handling causing a "Unrary operator" bug](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-default-settings) [R3yn4ld](https://github.com/R3yn4ld)
+    -[Fix default Settings handling causing a "Unary operator" bug](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-unary-operator-bug) [R3yn4ld](https://github.com/R3yn4ld)
 
 - 2024-08-01
     - [Deleted share error control and SoftStop improvement](https://github.com/R3yn4ld/ca.mover.tuning/tree/deleted-share-error-control) [R3yn4ld](https://github.com/R3yn4ld)
