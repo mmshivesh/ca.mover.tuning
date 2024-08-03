@@ -29,7 +29,7 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-- Next version:
+- 2024-08-04
     -[Fix default Settings handling causing a "Unary operator" bug](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-unary-operator-bug) ([R3yn4ld](https://github.com/R3yn4ld)) ([thanks to Alturismo](https://forums.unraid.net/topic/70783-plugin-mover-tuning/page/64/#comment-1449175))
     -[Add freeing threshold option](https://github.com/R3yn4ld/ca.mover.tuning/tree/Add-freeing-threshold-option) ([R3yn4ld](https://github.com/R3yn4ld))
 
