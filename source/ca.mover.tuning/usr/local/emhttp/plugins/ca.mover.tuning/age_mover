@@ -127,12 +127,29 @@ getMoverSettings() {
         return 1
     fi
 
+    ## Read version
+    if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+        VERSION=$(cfg version)
+        mvlogger "Mover Tuning Plugin version $VERSION"
+    fi
+
     ## Read in default threshold limit.
     ## [[ ! "$config_file" =~ shareOverrideConfig ]] ensure that we are not reading share custom settings
     
     if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-        DFTPCTLIMIT=$(cfg threshold)
-        mvlogger "Default threshold: $DFTPCTLIMIT %"
+        MOVINGPCTTHRESHOLD=$(cfg movingThreshold)
+        mvlogger "Using global moving threshold: $MOVINGPCTTHRESHOLD %"
+    elif [ ! -z $(cfg movingThreshold)]; then
+        MOVINGPCTTHRESHOLD=$(cfg movingThreshold)
+        mvlogger "Using share moving threshold: $MOVINGPCTTHRESHOLD %"
+    fi
+
+    if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+        FREEINGPCTLIMIT=$(cfg freeingThreshold)
+        mvlogger "Using global freeing threshold: $FREEINGPCTLIMIT %"
+    elif [ ! -z $(cfg shareFreeingThreshold)]; then
+        FREEINGPCTLIMIT=$(cfg shareFreeingThreshold)Using 
+        mvlogger "Using share freeing threshold: $FREEINGPCTLIMIT %"
     fi
 
     # Read other thresholds
@@ -149,13 +166,6 @@ getMoverSettings() {
         else
             [[ ! "$config_file" =~ shareOverrideConfig ]] && OMOVERTHRESH=""
         fi
-    fi
-
-    if [ -z $(cfg shareThreshold) ]; then
-        SHAREPCTLIMIT="NA"
-    else
-        SHAREPCTLIMIT=$(cfg shareThreshold)
-        mvlogger "Share threshold: $SHAREPCTLIMIT %"
     fi
     
     # Read filters parameters
@@ -368,7 +378,7 @@ createFilteredFilelist (){
         overrideFlag=0
         globalSkipFileTypes=$SKIPFILETYPES
 
-        #Start Creating the Find String.
+        #Gathering information
         #Sharename
         SHARENAME="$(basename "$SHARECFG" .cfg)"
         mvlogger "$(titleLine "Settings for $SHARENAME share" '-')"
@@ -383,49 +393,13 @@ createFilteredFilelist (){
                 mvlogger "$(titleLine "" '-')"
             fi
         fi
+        # Determine Cache mode
+        SHAREUSECACHE=$(grep shareUseCache "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
 
         #Cachepoolname
         CACHEPOOLNAME=$(grep shareCachePool "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
         if [ -z "$CACHEPOOLNAME" ]; then
-            mvlogger "No shareCachePool entry found in config file, defaulting to cache"
-            CACHEPOOLNAME="cache"
-        fi
-
-        # Determine Cache mode
-        SHAREUSECACHE=$(grep shareUseCache "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
-
-        # Set Share path. If a "cache=prefer" pool, we list files in /mnt/user and process later
-        if [ "$SHAREUSECACHE" = "prefer" ]; then
-            mvlogger "Cache mode: Prefer/Array->Cache. Will smart move newest files from Array to Cache until threshold. Older files will be moved from Cache to Array."
-            SHAREPATH="/mnt/user/$SHARENAME"
-        else
-            SHAREPATH="/mnt/$CACHEPOOLNAME/$SHARENAME"
-        fi
-        # Give information according to cache mode
-        if [ $SHAREUSECACHE = "only" ] && [ $REPAIRPRIMARYSHARES = "no" ]; then
-            mvlogger "Cache mode: Only. Nothing will be moved. Its usage is taken into account in the calculation of the threshold." 
-        elif [ $SHAREUSECACHE = "only" ] && [ $REPAIRPRIMARYSHARES = "yes" ]; then
-            mvlogger "Cache mode: Only. Eventual files on array will be moved to cache as Repair Cache Only and Cache No shares option is selected"
-        elif [ $SHAREUSECACHE = "yes" ]; then
-            mvlogger "Cache mode: Yes/Cache->Array. Will smart move old files from Cache to Array. Nothing will be moved from Array to Cache"
-        elif [ $SHAREUSECACHE = "no" ] && [ $REPAIRPRIMARYSHARES = "no" ]; then
-            mvlogger "Cache mode: No. Skipping"
-            continue
-        elif [ $SHAREUSECACHE = "no" ] && [ $REPAIRPRIMARYSHARES = "yes" ]; then
-            mvlogger "Cache mode: No. Eventual files on cache will be moved to array as Repair Cache Only and Cache No shares option is selected"
-        fi
-        mvlogger "Share Information: Name: $SHARENAME - Path: $SHAREPATH - Cache mode: $SHAREUSECACHE"
-        
-        # Do not process this pool if Share path is /mnt/cache
-        if [ "$SHAREPATH" = "/mnt/cache" ]; then
-            mvlogger "Skipping processing for /mnt/cache"
-            continue  # Move to the next iteration of the loop
-        fi
-        # Do not process this pool if path does not exist
-        if [ ! -d "$SHAREPATH" ]; then
-            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing /boot/config/shares/$SHARECFG if not."
-            mvlogger "Skipping."
-            continue  # Move to the next iteration of the loop
+            CACHEPOOLNAME="user0"
         fi
 
         #Find the current percent of used size of pool.
@@ -437,38 +411,95 @@ createFilteredFilelist (){
             POOLPCTUSED=$(df --output=pcent /mnt/$CACHEPOOLNAME | tail -n 1 | tr -d '%')
             POOLBYTEUSED=$(df --output=used --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1)
         fi
-        mvlogger "Pool Information: Name: $CACHEPOOLNAME - pool used: $POOLPCTUSED % - size: $POOLBYTEUSED bytes ($(convert_bytes $POOLBYTEUSED))"
-        
-        #Determine which percent limit we are going to use, in case ca.mover.tuning.cfg does not have a cachepool percent limit entry.
-        if [ "$SHAREPCTLIMIT" = "NA" ]; then
-            SELECTEDTHRESHOLD=$DFTPCTLIMIT
+
+        #Get the size threshold in bytes
+        if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
+            POOLSIZE=$(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}')
         else
-            SELECTEDTHRESHOLD=$SHAREPCTLIMIT
+            POOLSIZE=$(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1)
         fi
-        if [ "$OMOVERTHRESH" != "" ] && [ $POOLPCTUSED -gt $OMOVERTHRESH ] && [ $SHAREUSECACHE = "yes" ]; then
-            mvlogger "Pool is above 'move all' percentage: $OMOVERTHRESH % => moving all cache-yes shares to array"
-            CACHESIZETHRESH=0
-        else        
-            #Get the size threshold in bytes
-            if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-                CACHESIZETHRESH=$(( $(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}') * $SELECTEDTHRESHOLD /100))
+        CACHESIZETHRESH=$(( $POOLSIZE * $FREEINGPCTLIMIT / 100))
+        MOVESIZETHRESH=$(( $POOLSIZE * $MOVINGPCTTHRESHOLD / 100))
+        mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% - size: $(convert_bytes $MOVESIZETHRESH) ; Freeing threshold: $FREEINGPCTLIMIT% - Size: $(convert_bytes $CACHESIZETHRESH)"
+
+        # Print pool info:
+        mvlogger "Pool Information: Name: $CACHEPOOLNAME - usage: $POOLPCTUSED % - size: $(convert_bytes $POOLBYTEUSED)"
+
+
+        # Determine sharepath
+        if [ "$SHAREUSECACHE" = "prefer" ]; then
+            #"cache=prefer" pool, we replace path to list files in /mnt/user and process later
+            SHAREPATH="/mnt/user/$SHARENAME"
+        else
+            SHAREPATH="/mnt/$CACHEPOOLNAME/$SHARENAME"
+        fi
+        mvlogger "Share Information: Name: $SHARENAME - Path: $SHAREPATH"
+
+        # Give information according to cache mode and thresholds
+        if [ ! -d "$SHAREPATH" ] && [ $SHAREUSECACHE != "no" ]; then
+            # Do not process this pool if path does not exist
+            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing /boot/config/shares/$SHARECFG if not."
+            mvlogger "=> Skipping"
+            continue  # Move to the next iteration of the loop
+        elif [ "$SHAREUSECACHE" = "prefer" ]; then
+            if [ $POOLPCTUSED -lt $FREEINGPCTLIMIT ]; then
+                mvlogger "Cache mode: Prefer/Array->Cache. Pool is below freeing threshold percentage: $POOLPCTUSED% < $FREEINGPCTLIMIT%."
+                mvlogger "=> Will smart move newest files from Array to Cache until threshold. Older files will be moved from Cache to Array."
+            elif [ $POOLPCTUSED -gt $MOVINGPCTTHRESHOLD ]; then
+                mvlogger "Cache mode: Prefer/Array->Cache. Pool is above moving threshold percentage: $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Will smart move newest files from Array to Cache until threshold. Older files will be moved from Cache to Array."
             else
-                CACHESIZETHRESH=$(( $(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1) * $SELECTEDTHRESHOLD /100))
+                mvlogger "Cache mode: Prefer/Array->Cache. Pool is above freeing threshold percentage and above moving threshold percentage: $FREEINGPCTLIMIT% < $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Skipping"
+                continue
             fi
-            #Get reserved space. This is the space used by cache only shares.
-            if [ $SHAREUSECACHE = "only" ] && [ $REPAIRPRIMARYSHARES = "no" ]; then
+        elif [ $SHAREUSECACHE = "yes" ]; then
+            if [ "$OMOVERTHRESH" != "" ] && [ $POOLPCTUSED -gt $OMOVERTHRESH ]; then
+                mvlogger "Cache mode: Yes/Cache->Array. Move All from Cache-yes shares option is selected and pool is above move all threshold percentage:  $POOLPCTUSED% > $OMOVERTHRESH%."
+                mvlogger "=> Moving all files from cache to array"
+                CACHESIZETHRESH=0
+            elif [ $POOLPCTUSED -lt $MOVINGPCTTHRESHOLD ]; then
+                mvlogger "Cache mode: Yes/Cache->Array. Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Skipping"
+                continue
+            else
+                mvlogger "Cache mode: Yes/Cache->Array. Pool is above moving threshold percentage:  $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Will smart move old files from Cache to Array. Nothing will be moved from Array to Cache"
+            fi
+        elif [ $SHAREUSECACHE = "only" ]; then
+            if [ $REPAIRPRIMARYSHARES = "yes" ]; then
+                mvlogger "Cache mode: Only cache. Repair Cache Only and Cache No shares option is selected"
+                mvlogger "=> Eventual files on array will be moved to cache"
+            else
+                mvlogger "Cache mode: Only cache."
+                mvlogger "=> Nothing will be moved. Share usage is taken into account in the calculation of the threshold for other shares." 
                 if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
                     CACHESHARERESERVEDSPACE=$(zfs list -Hpo used $CACHEPOOLNAME/$SHARENAME )
                 else
+                    mvlogger "Calculating share usage... (can take a moment)"
                     CACHESHARERESERVEDSPACE=$(du -b -d0 $SHAREPATH | awk '{print $1}')
                 fi
                 echo "${CACHEPOOLNAME}|$SHARENAME|only|9999999999|$CACHESIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|$SHAREPATH" >>$FILTERED_FILELIST
                 mvlogger "$CACHEPOOLNAME/$SHARENAME usage: $CACHESHARERESERVEDSPACE bytes ($(convert_bytes $CACHESHARERESERVEDSPACE))"
-            elif [ $SHAREUSECACHE != "only" ]; then
-                mvlogger "Default threshold: $DFTPCTLIMIT % - $SHARENAME share threshold: $SHAREPCTLIMIT % => Threshold selected: $SELECTEDTHRESHOLD %,s size: $CACHESIZETHRESH bytes ($(convert_bytes $CACHESIZETHRESH))"
+                continue
             fi
-        fi        
-
+        elif [ $SHAREUSECACHE = "no" ]; then
+            if [ $REPAIRPRIMARYSHARES = "yes" ]; then
+                mvlogger "Cache mode: No cache. Repair Cache Only and Cache No shares option is selected"
+                mvlogger "=> Eventual files on cache will be moved to array"
+            else
+                mvlogger "Cache mode: No cache."
+                mvlogger "=> Skipping"
+                continue
+            fi
+        fi
+        
+        # Do not process this pool if Share path is /mnt/cache
+        if [ "$SHAREPATH" = "/mnt/cache" ]; then
+            mvlogger "Skipping processing for /mnt/cache"
+            continue  # Move to the next iteration of the loop
+        fi
+        
         #Base Find String
         FINDSTR="find \"$SHAREPATH\" -type f -depth"
 
@@ -485,14 +516,6 @@ createFilteredFilelist (){
                 mvlogger "Age (modification time) ${AGE}"
                 FINDSTR+=" -mtime +$RAGE"
             fi
-        fi
-
-
-        #Get the size threshold in bytes
-        if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-            CACHESIZETHRESH=$(( $(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}') * $SELECTEDTHRESHOLD /100))
-        else
-            CACHESIZETHRESH=$(( $(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1) * $SELECTEDTHRESHOLD /100))
         fi
 
         #Add Size to find string
@@ -920,7 +943,8 @@ start() {
             eval \"$BEFORESCRIPT\"
             mvlogger "Before script finished"
         else
-            mvlogger "Before script file does not exist or is not executable. Skipping."
+            mvlogger "Before script file does not exist or is not executable"
+            mvlogger "Skipping"
         fi
     fi
 
@@ -943,7 +967,8 @@ start() {
             eval \"$AFTERSCRIPT\"
             mvlogger "After script finished with result: $( $? && "OK" || $?)"
         else
-            mvlogger "After script file does not exist or is not executable. Skipping."
+            mvlogger "After script file does not exist or is not executable."
+            mvlogger "Skipping"
         fi
     fi
     mvlogger "$(titleLine 'WE ARE DONE !' '*')"

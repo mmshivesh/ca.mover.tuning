@@ -15,16 +15,17 @@
 
 <CHANGES>
 ###Next version:
-- Fix default Settings handling causing a "Unrary operator" bug
+- Fix default Settings handling causing a "Unrary operator" bug [R3yn4ld] (thanks to Alturismo)
+- Add freeing threshold option [R3yn4ld]
 
 ###2024-08-01
-- Deleted share error control
-- SoftStop improvement
+- Deleted share error control [R3yn4ld]
+- SoftStop improvement [R3yn4ld]
 
 ###2024-07-30
 - Update to repair broken installation from previous bugs [R3yn4ld]
 - Enhance internal mover function [R3yn4ld]
-- Fixed "cache=yes" shares not moving above threshold
+- Fixed "cache=yes" shares not moving above threshold [R3yn4ld]
 
 ###2024-07-29b
 - Various bug fixes [R3yn4ld], [Freender]
