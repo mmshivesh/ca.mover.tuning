@@ -14,7 +14,7 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###2024-08-0
+###Next version:
 - Fix default Settings handling causing a "Unrary operator" bug
 
 ###2024-08-01
