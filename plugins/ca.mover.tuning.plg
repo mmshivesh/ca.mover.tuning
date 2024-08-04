@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.08.04.0054">
-<!ENTITY md5       "ab949c0193499e3e79725f925ad38dda">
+<!ENTITY version   "2024.08.04.2112">
+<!ENTITY md5       "5163a5d39fa916befa0320be32c8048d">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -14,11 +14,10 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###Next version:
+###2024.08.04.2112:
 - Unraid 7.0.0 beta2 Secondary storage Compatibility: minor enhancements (6.12 mover action naming) and... can now move between pools (tested on 7.0.0-beta2) !
 - Fix find not ignoring hidden files [R3yn4ld] (Thanks to helpful-tune3401)
-
-###2024-08-04:
+2024-08-04.0054:
 - Fix default Settings handling causing a "Unrary operator" bug [R3yn4ld] (thanks to Alturismo)
 - Add freeing threshold option [R3yn4ld]
 
@@ -206,13 +205,14 @@ else
   fi
   if grep -q "threshold=" $config_file; then
     old_thresh=$(grep -q "threshold=" $config_file | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
-    if ! grep -q "moveThreshold" "$config_file"; then
-      echo "moveThreshold=$old_thresh" >> "$config_file"
+    if ! grep -q "movingThreshold" "$config_file"; then
+      echo "movingThreshold=$old_thresh" >> "$config_file"
     fi
     if ! grep -q "freeingThreshold" "$config_file"; then
       echo "freeingThreshold=$old_thresh" >> "$config_file"
-    fi  fi
-    sed '/threshold=/d' -i $config_file
+    fi  
+  fi
+  sed '/threshold=/d' -i $config_file
 fi
 
 echo ""
