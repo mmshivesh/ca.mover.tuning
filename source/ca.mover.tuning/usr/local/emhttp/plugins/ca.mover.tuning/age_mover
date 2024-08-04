@@ -457,7 +457,6 @@ createFilteredFilelist (){
             if [ "$OMOVERTHRESH" != "" ] && [ $POOLPCTUSED -gt $OMOVERTHRESH ]; then
                 mvlogger "Cache mode: Yes/Cache->Array. Move All from Cache-yes shares option is selected and pool is above move all threshold percentage:  $POOLPCTUSED% > $OMOVERTHRESH%."
                 mvlogger "=> Moving all files from cache to array"
-                CACHESIZETHRESH=0
             elif [ $POOLPCTUSED -lt $MOVINGPCTTHRESHOLD ]; then
                 mvlogger "Cache mode: Yes/Cache->Array. Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
                 mvlogger "=> Skipping"
@@ -503,9 +502,9 @@ createFilteredFilelist (){
         #Base Find String
         FINDSTR="find \"$SHAREPATH\" -type f -depth"
 
-        #Addition of filters are conditionned by [ $CACHESIZETHRESH -gt 0 ] to prevent filtering move all cache-yes share
+        #Addition of filters are conditionned by [ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ] to prevent filtering move all cache-yes share
         #Add Age variables to find string
-        if [ $CACHESIZETHRESH -gt 0 ] && [ "$AGE" -ge 1 ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$AGE" -ge 1 ]; then
             mvlogger "Adding Age"
             RAGE=$((AGE - 1))
             # Use Creation time or modification time according to settings
@@ -519,19 +518,19 @@ createFilteredFilelist (){
         fi
 
         #Add Size to find string
-        if [ $CACHESIZETHRESH -gt 0 ] && [ "$SIZE" -gt 0 ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$SIZE" -gt 0 ]; then
             mvlogger "Adding Size: ${SIZE}"
             FINDSTR+=" -size +${SIZE}M"
         fi
 
 
         #Add Ignore Hidden Files to find string
-        if [ $CACHESIZETHRESH -gt 0 ] && [ "$HIDDENFILES" == "yes" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$HIDDENFILES" == "yes" ]; then
             mvlogger "Adding Ignore Hidden Files: ${HIDDENFILES}"
             FINDSTR+=" -not -path '*/\.*'"
         fi
 
-        if [ $CACHESIZETHRESH -gt 0 ] && [ -n "$SKIPFOLDERSLIST" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFOLDERSLIST" ]; then
             mvlogger "Adding Skip Folder List. List Path: ${SKIPFILESPATH}"
             while IFS= read -r folder; do
                 FINDSTR+=" -not -path '${folder}'"
@@ -540,7 +539,7 @@ createFilteredFilelist (){
 
         #Add Size to find string
         FINDSTR+=" -printf '%T@|%s|%S|%n|%i|%p|\0' | awk -v RS='\0' -v FS='|' -v SPARSENESS=\$SPARSENESS -v CACHEPOOLNAME=\$CACHEPOOLNAME -v SHARENAME=\$SHARENAME -v SHAREUSECACHE=\$SHAREUSECACHE -v CACHESIZETHRESH=\$CACHESIZETHRESH"
-        if [ $CACHESIZETHRESH -gt 0 ] && [ "$SPARSENESS" -gt 0 ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$SPARSENESS" -gt 0 ]; then
             mvlogger "Adding Sparseness size ${SPARSENESS}"
             FINDSTR+="' \$3 > 0.SPARSENESS '"
         else
@@ -554,14 +553,14 @@ createFilteredFilelist (){
 
         #Add additional commands
         #Add Skipfilelist to find string
-        if [ $CACHESIZETHRESH -gt 0 ] && [ -n "$SKIPFILESLIST" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFILESLIST" ]; then
             mvlogger "Adding Skip File List. List Path: ${SKIPFILESPATH}"
 
             FINDSTR+=" | grep -vFx -f <(sed 's/\/*$//' '$SKIPFILESLIST')"
             mvlogger "Skipfilelist string: $FINDSTR"
         fi
 
-        if [ $CACHESIZETHRESH -gt 0 ] && [ -n "$SKIPFILETYPES" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFILETYPES" ]; then
             FINDSTR+=" | grep -iv"
             for i in $(echo $SKIPFILETYPES | sed "s/,/ /g"); do
                 FINDSTR+=" -e '\\$i'"
@@ -569,7 +568,7 @@ createFilteredFilelist (){
             mvlogger "Skipfiletypes string: $FINDSTR"
         fi
         
-        if [ $CACHESIZETHRESH -gt 0 ] && [ $overrideFlag = 1 ] && [ -n "$globalSkipFileTypes" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ $overrideFlag = 1 ] && [ -n "$globalSkipFileTypes" ]; then
             FINDSTR+=" | grep -iv"
             for i in $(echo $globalSkipFileTypes | sed "s/,/ /g"); do
                 FINDSTR+=" -e '\\$i'"
@@ -583,6 +582,7 @@ createFilteredFilelist (){
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
         fi
+        
         #If overrideFLag set restore settings
         if [ $overrideFlag = 1 ]; then
             overrideFlag=0
@@ -810,7 +810,7 @@ processTheMoves () {
             fi
 
             # Skip filesize = 0 (hardlinks already handeld in a previous loop)
-            if [ "$FILESIZE" = 0 ] ; then
+            if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
                 continue
             fi
 

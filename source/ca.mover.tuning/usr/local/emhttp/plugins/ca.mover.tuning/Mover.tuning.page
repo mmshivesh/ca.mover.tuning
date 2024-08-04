@@ -233,7 +233,7 @@ Comma separated list of file types:
 
 > A list of file types separated by a comma.
 
-Ignore All hiden files and directories
+Ignore All hidden files and directories
 : <select name='ignoreHidden' size='1' class='narrow' >
 <?=mk_option($cfg['ignoreHidden'],"no","No")?>
 <?=mk_option($cfg['ignoreHidden'],"yes","Yes")?>
