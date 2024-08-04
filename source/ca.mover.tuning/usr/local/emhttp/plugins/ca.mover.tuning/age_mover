@@ -37,14 +37,14 @@ SOFTSTOP_ACK=false
 UNRAIDCFGFILE="/boot/config/share.cfg"
 MOVERTUNINGCFGFILE="/boot/config/plugins/ca.mover.tuning/ca.mover.tuning.cfg"
 LOGLEVEL=1
-TOTALCACHEFILES=0
-REMAININGCACHEFILES=0
-TOTALCACHESIZE=0
-REMAININGCACHESIZE=0
-TOTALARRAYFILES=0
-REMAININGARRAYFILES=0
-TOTALARRAYSIZE=0
-REMAININGARRAYSIZE=0
+TOTALPRIMARYFILES=0
+REMAININGPRIMARYFILES=0
+TOTALPRIMARYSIZE=0
+REMAININGPRIMARYSIZE=0
+TOTALSECONDARYFILES=0
+REMAININGSECONDARYFILES=0
+TOTALSECONDARYSIZE=0
+REMAININGSECONDARYSIZE=0
 NOW=$(date +"%FT%H%M%S")
 FILTERED_FILELIST="/tmp/ca.mover.tuning/Filtered_files_$NOW.list"
 MOVER_ACTIONLIST="/tmp/ca.mover.tuning/Mover_action_$NOW.list"
@@ -139,7 +139,7 @@ getMoverSettings() {
     if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
         MOVINGPCTTHRESHOLD=$(cfg movingThreshold)
         mvlogger "Using global moving threshold: $MOVINGPCTTHRESHOLD %"
-    elif [ ! -z $(cfg movingThreshold)]; then
+    elif [ ! -z $(cfg movingThreshold) ]; then
         MOVINGPCTTHRESHOLD=$(cfg movingThreshold)
         mvlogger "Using share moving threshold: $MOVINGPCTTHRESHOLD %"
     fi
@@ -155,14 +155,14 @@ getMoverSettings() {
     # Read other thresholds
     if [ -z $(cfg omovercfg) ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-            mvlogger "No Move All from Cache-Yes shares argument provided, defaulting to no"
+            mvlogger "No Move All from Primary->Secondary shares argument provided, defaulting to no"
             echo 'omovercfg="no"' >> $config_file
             OMOVERTHRESH=""
         fi
     else
         if [ $(cfg omovercfg) = "yes" ]; then
             OMOVERTHRESH=$(cfg omoverthresh)
-            [ ! -z $OMOVERTHRESH ] && mvlogger "Cache threshold to Move all Cache-Yes shares to array: $OMOVERTHRESH %"
+            [ ! -z $OMOVERTHRESH ] && mvlogger "Primary threshold to Move all Primary->Secondary shares to secondary: $OMOVERTHRESH %"
         else
             [[ ! "$config_file" =~ shareOverrideConfig ]] && OMOVERTHRESH=""
         fi
@@ -283,15 +283,15 @@ getMoverSettings() {
         [ $HIDDENFILES = "yes" ] && mvlogger "Ignore Hidden Files: $HIDDENFILES"
     fi
     
-    if [ -z $(cfg repairPrimary) ]; then
+    if [ -z $(cfg rebalanceShares) ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No Repair argument provided, defaulting to no"
-            echo 'repairPrimary="no"' >> $config_file
-            REPAIRPRIMARYSHARES="no"
+            echo 'rebalanceShares="no"' >> $config_file
+            REBALANCESHARES="no"
         fi
     else
-        REPAIRPRIMARYSHARES=$(cfg repairPrimary)
-        [ $REPAIRPRIMARYSHARES = "yes" ] && mvlogger "Repair Cache:Only and Cache:No Shares: $REPAIRPRIMARYSHARES"
+        REBALANCESHARES=$(cfg rebalanceShares)
+        [ $REBALANCESHARES = "yes" ] && mvlogger "Rebalance shares: $REBALANCESHARES"
     fi
 
     if [ -z $(cfg sizef) ]; then
@@ -326,7 +326,7 @@ getMoverSettings() {
 
     if [ -z $(cfg synchronizeCache) ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-            mvlogger "No Synchronize Cache argument provided, defaulting to no"
+            mvlogger "No Synchronize Primary to Secondary argument provided, defaulting to no"
             echo 'synchronizeCache="no"' >> $config_file
             SYNCHRONIZECACHE="no"
         fi
@@ -335,7 +335,7 @@ getMoverSettings() {
         if [ $SYNCHRONIZECACHE = "yes" ]; then
             LASTCACHESYNC=$(cfg lastCacheSync)
             [ -z $LASTCACHESYNC ] && LASTCACHESYNC=0
-            mvlogger "Synchronize cache: $SYNCHRONIZECACHE"
+            mvlogger "Synchronize Primary to Secondary: $SYNCHRONIZECACHE"
         fi
     fi
 
@@ -354,14 +354,14 @@ getMoverSettings() {
 moverStatusWrite() {
     #echo "test write"
     #Writes to file /usr/local/emhttp/state/mover.ini GUI update variables
-    echo "TotalToArray=${TOTALCACHESIZE}" >$MOVER_STATUS
-    echo "RemainToArray=${REMAININGCACHESIZE}" >>$MOVER_STATUS
-    echo "TotalFromArray=${TOTALARRAYSIZE}" >>$MOVER_STATUS
-    echo "RemainFromArray=${REMAININGARRAYSIZE}" >>$MOVER_STATUS
-    echo "TotalFilesToArray=${TOTALCACHEFILES}" >$MOVER_STATUS
-    echo "RemainFilesToArray=${REMAININGCACHEFILES}" >>$MOVER_STATUS
-    echo "TotalFilesFromArray=${TOTALARRAYFILES}" >>$MOVER_STATUS
-    echo "RemainFilesFromArray=${REMAININGARRAYFILES}" >>$MOVER_STATUS
+    echo "TotalToSecondary=${TOTALPRIMARYSIZE}" >$MOVER_STATUS
+    echo "RemainToSecondary=${REMAININGPRIMARYSIZE}" >>$MOVER_STATUS
+    echo "TotalFromSecondary=${TOTALSECONDARYSIZE}" >>$MOVER_STATUS
+    echo "RemainFromSecondary=${REMAININGSECONDARYSIZE}" >>$MOVER_STATUS
+    echo "TotalFilesToSecondary=${TOTALPRIMARYFILES}" >$MOVER_STATUS
+    echo "RemainFilesToSecondary=${REMAININGPRIMARYFILES}" >>$MOVER_STATUS
+    echo "TotalFilesFromSecondary=${TOTALSECONDARYFILES}" >>$MOVER_STATUS
+    echo "RemainFilesFromSecondary=${REMAININGSECONDARYFILES}" >>$MOVER_STATUS
     echo "File=${GUI_CURRENT_FILE}" >>$MOVER_STATUS
     echo "Action=${GUI_ACTION}" >>$MOVER_STATUS
 }
@@ -369,7 +369,7 @@ moverStatusWrite() {
 createFilteredFilelist (){
     mvlogger "$(titleLine 'FILTERING FILES' '*')"
     # create a file containing the list off all shareUseCache yes or prefer whith this format:
-    echo "CACHEPOOLNAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|CACHESIZETRESH|FILESIZE|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
+    echo "PRIMARYSTORAGENAME|SECONDARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|PRIMARYSIZETRESH|FILESIZE|SPARSENESS|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
     for SHARECFG in /boot/config/shares/*; do
         if [ -e $SOFTSTOPFILE ]; then
             [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
@@ -381,7 +381,7 @@ createFilteredFilelist (){
         #Gathering information
         #Sharename
         SHARENAME="$(basename "$SHARECFG" .cfg)"
-        mvlogger "$(titleLine "Settings for $SHARENAME share" '-')"
+        mvlogger "$(titleLine "Processing $SHARENAME share" '-')"
         #Check to see if this share has a mover settings override, if yes set overrideFlag and change settings
         if [ -f "/boot/config/plugins/ca.mover.tuning/shareOverrideConfig/$SHARENAME.cfg" ]; then
             SHARETUNINGFILE="/boot/config/plugins/ca.mover.tuning/shareOverrideConfig/$SHARENAME.cfg"
@@ -395,99 +395,98 @@ createFilteredFilelist (){
         fi
         # Determine Cache mode
         SHAREUSECACHE=$(grep shareUseCache "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
-
-        #Cachepoolname
-        CACHEPOOLNAME=$(grep shareCachePool "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
-        if [ -z "$CACHEPOOLNAME" ]; then
-            CACHEPOOLNAME="user0"
+        #PRIMARYSTORAGENAME
+        PRIMARYSTORAGENAME=$(grep "shareCachePool=" "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
+        if [ -z "$PRIMARYSTORAGENAME" ]; then
+            PRIMARYSTORAGENAME="user0"
+        fi
+        SECONDARYSTORAGENAME=$(grep "shareCachePool2=" "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
+        if [ -z "$SECONDARYSTORAGENAME" ]; then
+            SECONDARYSTORAGENAME="user0"
         fi
 
         #Find the current percent of used size of pool.
-        if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-            #mvlogger "$CACHEPOOLNAME is zfs."
-            POOLPCTUSED=$(zpool get -o value capacity $CACHEPOOLNAME | tail -n 1 | tr -d '%')
-            POOLBYTEUSED=$(zfs list -Hpo used $CACHEPOOLNAME )
+        if is_zfs_mountpoint_fstype "/mnt/$PRIMARYSTORAGENAME"; then
+            #mvlogger "$PRIMARYSTORAGENAME is zfs."
+            POOLPCTUSED=$(zpool get -o value capacity $PRIMARYSTORAGENAME | tail -n 1 | tr -d '%')
+            POOLBYTEUSED=$(zfs list -Hpo used $PRIMARYSTORAGENAME )
         else
-            POOLPCTUSED=$(df --output=pcent /mnt/$CACHEPOOLNAME | tail -n 1 | tr -d '%')
-            POOLBYTEUSED=$(df --output=used --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1)
+            POOLPCTUSED=$(df --output=pcent /mnt/$PRIMARYSTORAGENAME | tail -n 1 | tr -d '%')
+            POOLBYTEUSED=$(df --output=used --block-size=1 /mnt/$PRIMARYSTORAGENAME | tail -n 1)
         fi
 
         #Get the size threshold in bytes
-        if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-            POOLSIZE=$(zfs list -Hp -o available,used $CACHEPOOLNAME | awk '{print $1 + $2}')
+        if is_zfs_mountpoint_fstype "/mnt/$PRIMARYSTORAGENAME"; then
+            POOLSIZE=$(zfs list -Hp -o available,used $PRIMARYSTORAGENAME | awk '{print $1 + $2}')
         else
-            POOLSIZE=$(df --output=size --block-size=1 /mnt/$CACHEPOOLNAME | tail -n 1)
+            POOLSIZE=$(df --output=size --block-size=1 /mnt/$PRIMARYSTORAGENAME | tail -n 1)
         fi
-        CACHESIZETHRESH=$(( $POOLSIZE * $FREEINGPCTLIMIT / 100))
+        PRIMARYSIZETHRESH=$(( $POOLSIZE * $FREEINGPCTLIMIT / 100))
         MOVESIZETHRESH=$(( $POOLSIZE * $MOVINGPCTTHRESHOLD / 100))
-        mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% - size: $(convert_bytes $MOVESIZETHRESH) ; Freeing threshold: $FREEINGPCTLIMIT% - Size: $(convert_bytes $CACHESIZETHRESH)"
+        mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% - size: $(convert_bytes $MOVESIZETHRESH) ; Freeing threshold: $FREEINGPCTLIMIT% - Size: $(convert_bytes $PRIMARYSIZETHRESH)"
 
         # Print pool info:
-        mvlogger "Pool Information: Name: $CACHEPOOLNAME - usage: $POOLPCTUSED % - size: $(convert_bytes $POOLBYTEUSED)"
+        mvlogger "Primary Pool: $PRIMARYSTORAGENAME - usage: $POOLPCTUSED % - used: $(convert_bytes $POOLBYTEUSED)"
+        mvlogger "Secondary Pool: $PRIMARYSTORAGENAME"
 
 
         # Determine sharepath
-        if [ "$SHAREUSECACHE" = "prefer" ]; then
-            #"cache=prefer" pool, we replace path to list files in /mnt/user and process later
-            SHAREPATH="/mnt/user/$SHARENAME"
-        else
-            SHAREPATH="/mnt/$CACHEPOOLNAME/$SHARENAME"
-        fi
+        SHAREPATH="/mnt/$PRIMARYSTORAGENAME/$SHARENAME"
         mvlogger "Share Information: Name: $SHARENAME - Path: $SHAREPATH"
 
         # Give information according to cache mode and thresholds
         if [ ! -d "$SHAREPATH" ] && [ $SHAREUSECACHE != "no" ]; then
             # Do not process this pool if path does not exist
-            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing /boot/config/shares/$SHARECFG if not."
+            mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing $SHARECFG if not."
             mvlogger "=> Skipping"
             continue  # Move to the next iteration of the loop
         elif [ "$SHAREUSECACHE" = "prefer" ]; then
             if [ $POOLPCTUSED -lt $FREEINGPCTLIMIT ]; then
-                mvlogger "Cache mode: Prefer/Array->Cache. Pool is below freeing threshold percentage: $POOLPCTUSED% < $FREEINGPCTLIMIT%."
-                mvlogger "=> Will smart move newest files from Array to Cache until threshold. Older files will be moved from Cache to Array."
+                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is below freeing threshold percentage: $POOLPCTUSED% < $FREEINGPCTLIMIT%."
+                mvlogger "=> Will smart move newest files from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME until threshold. Older files will be moved from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME."
             elif [ $POOLPCTUSED -gt $MOVINGPCTTHRESHOLD ]; then
-                mvlogger "Cache mode: Prefer/Array->Cache. Pool is above moving threshold percentage: $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
-                mvlogger "=> Will smart move newest files from Array to Cache until threshold. Older files will be moved from Cache to Array."
+                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is above moving threshold percentage: $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Will smart move newest files from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME until threshold. Older files will be moved from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME."
             else
-                mvlogger "Cache mode: Prefer/Array->Cache. Pool is above freeing threshold percentage and above moving threshold percentage: $FREEINGPCTLIMIT% < $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
+                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is above freeing threshold percentage and above moving threshold percentage: $FREEINGPCTLIMIT% < $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
                 mvlogger "=> Skipping"
                 continue
             fi
         elif [ $SHAREUSECACHE = "yes" ]; then
             if [ "$OMOVERTHRESH" != "" ] && [ $POOLPCTUSED -gt $OMOVERTHRESH ]; then
-                mvlogger "Cache mode: Yes/Cache->Array. Move All from Cache-yes shares option is selected and pool is above move all threshold percentage:  $POOLPCTUSED% > $OMOVERTHRESH%."
-                mvlogger "=> Moving all files from cache to array"
+                mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Move All from Primary->Secondary shares option is selected and pool is above move all threshold percentage:  $POOLPCTUSED% > $OMOVERTHRESH%."
+                mvlogger "=> Moving all files from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME"
             elif [ $POOLPCTUSED -lt $MOVINGPCTTHRESHOLD ]; then
-                mvlogger "Cache mode: Yes/Cache->Array. Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
+                mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
                 mvlogger "=> Skipping"
                 continue
             else
-                mvlogger "Cache mode: Yes/Cache->Array. Pool is above moving threshold percentage:  $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
-                mvlogger "=> Will smart move old files from Cache to Array. Nothing will be moved from Array to Cache"
+                mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Pool is above moving threshold percentage:  $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
+                mvlogger "=> Will smart move old files from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME. Nothing will be moved from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME"
             fi
         elif [ $SHAREUSECACHE = "only" ]; then
-            if [ $REPAIRPRIMARYSHARES = "yes" ]; then
-                mvlogger "Cache mode: Only cache. Repair Cache Only and Cache No shares option is selected"
-                mvlogger "=> Eventual files on array will be moved to cache"
+            if [ $REBALANCESHARES = "yes" ]; then
+                mvlogger "Mover action: no action, only $PRIMARYSTORAGENAME used (cache:only). Rebalance shares option is selected"
+                mvlogger "=> Eventual files on $SECONDARYSTORAGENAME will be moved to $PRIMARYSTORAGENAME"
             else
-                mvlogger "Cache mode: Only cache."
+                mvlogger "Mover action: no action, only $PRIMARYSTORAGENAME used (cache:only)."
                 mvlogger "=> Nothing will be moved. Share usage is taken into account in the calculation of the threshold for other shares." 
-                if is_zfs_mountpoint_fstype "/mnt/$CACHEPOOLNAME"; then
-                    CACHESHARERESERVEDSPACE=$(zfs list -Hpo used $CACHEPOOLNAME/$SHARENAME )
+                if is_zfs_mountpoint_fstype "/mnt/$PRIMARYSTORAGENAME"; then
+                    CACHESHARERESERVEDSPACE=$(zfs list -Hpo used $PRIMARYSTORAGENAME/$SHARENAME )
                 else
                     mvlogger "Calculating share usage... (can take a moment)"
                     CACHESHARERESERVEDSPACE=$(du -b -d0 $SHAREPATH | awk '{print $1}')
                 fi
-                echo "${CACHEPOOLNAME}|$SHARENAME|only|9999999999|$CACHESIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|$SHAREPATH" >>$FILTERED_FILELIST
-                mvlogger "$CACHEPOOLNAME/$SHARENAME usage: $CACHESHARERESERVEDSPACE bytes ($(convert_bytes $CACHESHARERESERVEDSPACE))"
+                echo "${PRIMARYSTORAGENAME}|${PRIMARYSTORAGENAME}|$SHARENAME|only|9999999999|$PRIMARYSIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|${SHAREPATH}" >>$FILTERED_FILELIST
+                mvlogger "$PRIMARYSTORAGENAME/$SHARENAME used: $(convert_bytes $CACHESHARERESERVEDSPACE)"
                 continue
             fi
         elif [ $SHAREUSECACHE = "no" ]; then
-            if [ $REPAIRPRIMARYSHARES = "yes" ]; then
-                mvlogger "Cache mode: No cache. Repair Cache Only and Cache No shares option is selected"
-                mvlogger "=> Eventual files on cache will be moved to array"
+            if [ $REBALANCESHARES = "yes" ]; then
+                mvlogger "Mover action: no action, only $PRIMARYSTORAGENAME used (cache:no). Rebalance shares option is selected"
+                mvlogger "=> Eventual files on cache will be moved to $SECONDARYSTORAGENAME"
             else
-                mvlogger "Cache mode: No cache."
+                mvlogger "Mover action: no action, only $PRIMARYSTORAGENAME used (cache:no)."
                 mvlogger "=> Skipping"
                 continue
             fi
@@ -498,11 +497,16 @@ createFilteredFilelist (){
             mvlogger "Skipping processing for /mnt/cache"
             continue  # Move to the next iteration of the loop
         fi
+        # Alterate SHAREPATH on Cache=prefer
+        if [ "$SHAREUSECACHE" = "prefer" ]; then
+            #"cache=prefer" pool, we replace path to list files in /mnt/user and process later
+            SHAREPATH="/mnt/*/$SHARENAME"
+        fi
         
         #Base Find String
-        FINDSTR="find \"$SHAREPATH\" -type f -depth"
+        FINDSTR="find $SHAREPATH ! -path \"/mnt/user*\" -type f -depth "
 
-        #Addition of filters are conditionned by [ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ] to prevent filtering move all cache-yes share
+        #Addition of filters are conditionned by [ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ] to prevent filtering move all Primary->Secondary share
         #Add Age variables to find string
         if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$AGE" -ge 1 ]; then
             mvlogger "Adding Age"
@@ -538,7 +542,7 @@ createFilteredFilelist (){
         fi
 
         #Add Size to find string
-        FINDSTR+=" -printf '%T@|%s|%S|%n|%i|%p|\0' | awk -v RS='\0' -v FS='|' -v SPARSENESS=\$SPARSENESS -v CACHEPOOLNAME=\$CACHEPOOLNAME -v SHARENAME=\$SHARENAME -v SHAREUSECACHE=\$SHAREUSECACHE -v CACHESIZETHRESH=\$CACHESIZETHRESH"
+        FINDSTR+=" -printf '%T@|%s|%S|%n|%i|%p|\0' | awk -v RS='\0' -v FS='|' -v SPARSENESS=\$SPARSENESS -v PRIMARYSTORAGENAME=\$PRIMARYSTORAGENAME -v SECONDARYSTORAGENAME=\$SECONDARYSTORAGENAME -v SHARENAME=\$SHARENAME -v SHAREUSECACHE=\$SHAREUSECACHE -v PRIMARYSIZETHRESH=\$PRIMARYSIZETHRESH"
         if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$SPARSENESS" -gt 0 ]; then
             mvlogger "Adding Sparseness size ${SPARSENESS}"
             FINDSTR+="' \$3 > 0.SPARSENESS '"
@@ -546,9 +550,9 @@ createFilteredFilelist (){
             FINDSTR+=" '"
         fi
         if [ "$CTIMEA" == "yes" ]; then
-            FINDSTR+="{printf \"%s|%s|%s|%d|%d|%d|%s|%d|%d|%s\\n\", CACHEPOOLNAME, SHARENAME, SHAREUSECACHE, \$1, CACHESIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
+            FINDSTR+="{printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME, SHARENAME, SHAREUSECACHE, \$1, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
         else
-            FINDSTR+="{cmd=\"stat -c%Y \\\"\"\$6\"\\\"\"; cmd | getline result; close(cmd); sub(/\\n\$/, \"\", result); printf \"%s|%s|%s|%d|%d|%d|%s|%d|%d|%s\\n\", CACHEPOOLNAME, SHARENAME, SHAREUSECACHE, result, CACHESIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
+            FINDSTR+="{cmd=\"stat -c%Y \\\"\"\$6\"\\\"\"; cmd | getline result; close(cmd); sub(/\\n\$/, \"\", result); printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME,  SHARENAME, SHAREUSECACHE, result, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
         fi
 
         #Add additional commands
@@ -576,13 +580,13 @@ createFilteredFilelist (){
             mvlogger "Global skipfiletypes string: $FINDSTR"
         fi
 
-        if [ -d "$SHAREPATH" ] && ( [ $SHAREUSECACHE != "only" ] || ( [ $SHAREUSECACHE = "only" ] && [ $REPAIRPRIMARYSHARES = "yes" ] )) ; then
+        if ([ -d "$SHAREPATH" ] || [ "$SHAREUSECACHE" = "prefer" ]) ; then
             #mvlogger "FINDSTR is: $FINDSTR"
             mvlogger "Filtering $SHARENAME files... (can take a moment)"
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
         fi
-        
+
         #If overrideFLag set restore settings
         if [ $overrideFlag = 1 ]; then
             overrideFlag=0
@@ -594,10 +598,9 @@ createFilteredFilelist (){
         fi
     done
 
-    # Sort the file list by cachepoolname, shareusecache, creation/modification time, and inode
-    sort -t '|' -k1,1 -k3,3 -k4,4nr -k9,9 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
+    # Sort the file list by PRIMARYSTORAGENAME, shareusecache, creation/modification time, and inode
+    sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
 
-    # Done with populating filtered filelist
 }
 
 decideMoveActions () {
@@ -611,9 +614,10 @@ decideMoveActions () {
     mvlogger "Deciding the action (move/sync/keep) for each file. There are $(grep "/mnt" $FILTERED_FILELIST | wc -l) files, it can take a while..."
 
     ## Proceed with files
-    # Fields: $1:CACHEPOOLNAME $2:SHARENAME $3:SHAREUSECACHE $4:MODIFICATIONTIME $5:CACHESIZETRESH 
-    # $6:FILESIZE $7SPARSENESS $8:NBLINKS $9:INODE $10:FILEPATH
-    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" '
+    # Fields: $1:PRIMARYSTORAGENAME $2:SECONDARYSTORAGENAME $3:SHARENAME $4:SHAREUSECACHE $5:MODIFICATIONTIME
+    # $6:PRIMARYSIZETRESH $7:FILESIZE $8:SPARSENESS $9:NBLINKS $10:INODE $11:FILEPATH
+
+    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" -v REBALANCESHARES=$REBALANCESHARES '
         BEGIN {
             if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
                 exit 1
@@ -622,7 +626,7 @@ decideMoveActions () {
             previous_inode = 0
 
             # Print new header
-            printf "CACHEPOOLNAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|FILESIZE|POOLSUM|THRESHOLD|NBLINKS|INODE|ACTION|FROM|TO|FILEPATH\n"
+            printf "PRIMARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|FILESIZE|POOLSUM|THRESHOLD|NBLINKS|INODE|ACTION|FROM|TO|FILEPATH\n"
         }
 
         NR > 1 { # Main loop, skip header line
@@ -631,79 +635,77 @@ decideMoveActions () {
             }
 
             # Handle hardlink size
-            if ($8 > 1) {
-                if ($9 == previous_inode) {
-                    $6 = 0 # Set filesize to 0 for hardlinks
+            if ($9 > 1) {
+                if ($10 == previous_inode) {
+                    $7 = 0 # Set filesize to 0 for hardlinks
                 }
             }
-            previous_inode = $9
+            previous_inode = $10
 
             # Update pool sum (use pool_sums[$1])
-            pool_sums[$1] += $6
+            pool_sums[$1] += $7
 
-            # Extract the part after the first three slashes in the ninth field
-            split($10, path_parts, "/")
-            path_in_share = ""
+            # Extract the part after the first three slashes (/mnt/pool/) in the ninth field (filepath)
+            split($11, path_parts, "/")
+            storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
+            file_path = ""
             for (i = 4; i <= length(path_parts); i++) {
-                path_in_share = path_in_share path_parts[i]
+                file_path = file_path path_parts[i]
                 if (i < length(path_parts)) {
-                    path_in_share = path_in_share "/"
+                    file_path = file_path "/"
                 }
             }
-            # Construct full file path
-            cachepath = "/mnt/" $1 "/" path_in_share
 
-            # Check where file is stored. Priority to cache in case of dupe
-            if (system("[ -e \"" cachepath "\" ]") == 0) {
-                # File exists on cache
-                filepath = cachepath
-
+            # Check where file is stored. Priority to primary in case of dupe
+            if (storage_path ~ $1) {
                 # Make decision to move or keep:
-                action = ($3 != "only" && (($3 == "prefer" || $3 == "yes") && (pool_sums[$1] >= $5 && AGE == -1) || AGE >= 0) || $3 == "no" ) ? "move" : "keep"
+                action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
 
-                if (action == "keep")  {
-                    source = "/mnt/" $1
-                    if (SYNCHRONIZECACHE == "yes" && $3 != "only" && $4 >= LASTCACHESYNC )  {
+                if (action == "keep on primary")  {
+                    source = storage_path
+                    if (SYNCHRONIZECACHE == "yes" && $4 != "only" && $5 >= LASTCACHESYNC )  {
                         action = "sync"
-                        destination = "/mnt/user0"
-                        pool_stats[$1]["files_from_cache"] += 1
-                        pool_stats[$1]["total_size_from_cache"] += $6
+                        destination = "/mnt/" $2
+                        pool_stats[$1]["files_from_primary"] += 1
+                        pool_stats[$1]["total_size_from_primary"] += $7
                     } else {
-                        destination = "/mnt/" $1
+                        destination = "none"
                     }
                 }
 
                 # Update pool statistics and set destination if moving the file
-                if (action == "move") {
-                    source = "/mnt/" $1
-                    destination = "/mnt/user0"
-                    pool_stats[$1]["files_from_cache"] += 1
-                    pool_stats[$1]["total_size_from_cache"] += $6
+                if (action == "move from primary") {
+                    source = storage_path
+                    destination = "/mnt/" $2
+                    pool_stats[$1]["files_from_primary"] += 1
+                    pool_stats[$1]["total_size_from_primary"] += $7
                 }
             } else {
-                # File does not exist on cache
+                if (storage_path ~ $2 || storage_path ~ "disk") {
+                    # Make decision to move or keep:
+                    action = ($4 == "only" || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
-                # Make decision to move or keep:
-                action = ($3 == "only" || ($3 == "prefer" && ((pool_sums[$1] <= $5 && AGE == -1) || AGE >= 0))) ? "move" : "keep"
-
-                if (action == "keep") {
-                    source = "/mnt/user0"
-                    destination = "/mnt/user0"
-                }
-
-                # Update pool statistics and set destination if moving the file
-                if (action == "move") {
-                    source="/mnt/user0"
-                    if (SYNCHRONIZECACHE == "yes" && $3 != "only") {
-                        action = "sync"
+                    if (action == "keep on secondary") {
+                        source = storage_path
+                        destination = "none"
                     }
-                    destination = "/mnt/" $1
-                    pool_stats[$1]["files_from_array"] += 1
-                    pool_stats[$1]["total_size_from_array"] += $6
+
+                    # Update pool statistics and set destination if moving the file
+                    if (action == "move from secondary") {
+                        source = storage_path
+                        if (SYNCHRONIZECACHE == "yes" && $3 != "only") {
+                            action = "sync"
+                        }
+                        destination = "/mnt/" $1
+                        pool_stats[$1]["files_from_secondary"] += 1
+                        pool_stats[$1]["total_size_from_secondary"] += $7
+                    }
+                } else {
+                    action="keep misplaced" #If not on primary nor secondary, file will be tagged misplaced
                 }
             }
             # Create action list
-            printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $2, $3, $4, $6, pool_sums[$1], $5, $8, $9, action, source, destination, path_in_share
+            printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $3, $4, $5, $7, pool_sums[$1], $6, $9, $10, action, source, destination, file_path
         }
         END {
             if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
@@ -711,29 +713,29 @@ decideMoveActions () {
             }
 
             # Write statistics header line
-            printf "CACHEPOOLNAME|FILES_FROM_CACHE|SIZE_FROM_CACHE|FILES_FROM_ARRAY|SIZE_FROM_ARRAY\n" >> "'"${STATS_FILE}"'"
+            printf "PRIMARYSTORAGENAME|FILES_FROM_PRIMARY|SIZE_FROM_PRIMARY|FILES_FROM_SECONDARY|SIZE_FROM_SECONDARY\n" >> "'"${STATS_FILE}"'"
 
             # Loop through pool_stats and write data to stats_file
-            total_files_from_cache = 0
-            total_size_from_cache = 0
-            total_files_from_array = 0
-            total_size_from_array = 0
+            total_files_from_primary = 0
+            total_size_from_primary = 0
+            total_files_from_secondary = 0
+            total_size_from_secondary = 0
             
             for (poolname in pool_stats) {
-                files_from_cache = pool_stats[poolname]["files_from_cache"]
-                size_from_cache = pool_stats[poolname]["total_size_from_cache"]
-                files_from_array = pool_stats[poolname]["files_from_array"]
-                size_from_array = pool_stats[poolname]["total_size_from_array"]
+                files_from_primary = pool_stats[poolname]["files_from_primary"]
+                size_from_primary = pool_stats[poolname]["total_size_from_primary"]
+                files_from_secondary = pool_stats[poolname]["files_from_secondary"]
+                size_from_secondary = pool_stats[poolname]["total_size_from_secondary"]
 
-                total_files_from_cache += files_from_cache
-                total_files_from_array += files_from_array
-                total_size_from_cache += size_from_cache
-                total_size_from_array += size_from_array
-                printf("%s|%d|%d|%d|%d\n", poolname, files_from_cache, size_from_cache, files_from_array, size_from_array) >> "'"${STATS_FILE}"'"
+                total_files_from_primary += files_from_primary
+                total_files_from_secondary += files_from_secondary
+                total_size_from_primary += size_from_primary
+                total_size_from_secondary += size_from_secondary
+                printf("%s|%d|%d|%d|%d\n", poolname, files_from_primary, size_from_primary, files_from_secondary, size_from_secondary) >> "'"${STATS_FILE}"'"
             }
 
             # Print overall totals to stats file
-            printf("TOTAL|%d|%d|%d|%d\n", total_files_from_cache, total_size_from_cache, total_files_from_array, size_from_array) >> "'"${STATS_FILE}"'"
+            printf("TOTAL|%d|%d|%d|%d\n", total_files_from_primary, total_size_from_primary, total_files_from_secondary, size_from_secondary) >> "'"${STATS_FILE}"'"
 
     }' "$FILTERED_FILELIST" > $MOVER_ACTIONLIST
     if [ -e $SOFTSTOPFILE ]; then
@@ -742,41 +744,45 @@ decideMoveActions () {
     fi
 
     ## Printing some stats
-    TOTALCACHEFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 2)
-    TOTALCACHESIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 3)
-    TOTALARRAYFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 4)
-    TOTALARRAYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 5)
+    TOTALPRIMARYFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 2)
+    TOTALPRIMARYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 3)
+    TOTALSECONDARYFILES=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 4)
+    TOTALSECONDARYSIZE=$(grep "TOTAL" "$STATS_FILE" | cut -d "|" -f 5)
 
     # Add total files and size
-    TOTALFILES=$((TOTALCACHEFILES + TOTALARRAYFILES))
-    TOTALSIZE=$((TOTALCACHESIZE + TOTALARRAYSIZE))
+    TOTALFILES=$((TOTALPRIMARYFILES + TOTALSECONDARYFILES))
+    TOTALSIZE=$((TOTALPRIMARYSIZE + TOTALSECONDARYSIZE))
+    MISPLACEDFILES=$(grep "|keep misplaced|" $MOVER_ACTIONLIST |wc -l)
 
     # Print stats
+    if [ $MISPLACEDFILES -gt 0 ]; then
+        mvlogger "Warning: $MISPLACEDFILES files are stored outside their primary or secondary storages."
+    fi
     if [ $TOTALFILES -gt 0 ]; then
-        mvlogger "A total of $TOTALFILES files representing $TOTALSIZE bytes ($(convert_bytes $TOTALSIZE)) will be moved/synced:"
-        if [ $TOTALCACHEFILES -gt 0 ]; then
+        mvlogger "A total of $TOTALFILES files representing $(convert_bytes $TOTALSIZE) will be moved/synced:"
+        if [ $TOTALPRIMARYFILES -gt 0 ]; then
             # Read data line by line using while loop
-            while IFS="|" read -r CACHEPOOLNAME CACHEFILES CACHESIZE ARRAYFILES ARRAYSIZE; do
+            while IFS="|" read -r PRIMARYSTORAGENAME PRIMARYFILES PRIMARYSIZE SECONDARYFILES SECONDARYSIZE; do
                 if [ -e $SOFTSTOPFILE ]; then
                     mvlogger "Soft Stopping requested"
                     break
                 fi
                 # Check if line is not the total line nor the header line
-                if [ $CACHEPOOLNAME != "TOTAL" ] && [ $CACHEPOOLNAME != "CACHEPOOLNAME" ]; then
-                    mvlogger "- $CACHEFILES files representing $CACHESIZE bytes ($(convert_bytes $CACHESIZE)) will be moved/sync from $CACHEPOOLNAME to array"
+                if [ $PRIMARYSTORAGENAME != "TOTAL" ] && [ $PRIMARYSTORAGENAME != "PRIMARYSTORAGENAME" ]; then
+                    mvlogger "- $PRIMARYFILES files representing $(convert_bytes $PRIMARYSIZE) will be moved/sync from $PRIMARYSTORAGENAME to secondary"
                 fi
             done < "$STATS_FILE"
         else
-            mvlogger "- No new files will be moved/synced from cache to array"
+            mvlogger "- No new files will be moved/synced from primary to secondary"
         fi
-        if [ $TOTALARRAYFILES -gt 0 ]; then
-            mvlogger "- $TOTALARRAYFILES new files representing $TOTALARRAYSIZE bytes ($(convert_bytes $TOTALARRAYSIZE)) will then be moved/synced from array to cache"
+        if [ $TOTALSECONDARYFILES -gt 0 ]; then
+            mvlogger "- $TOTALSECONDARYFILES new files representing $(convert_bytes $TOTALSECONDARYSIZE) will then be moved/synced from secondary to primary"
         else
-            mvlogger "- No new files will be moved/synced from array to cache"
+            mvlogger "- No new files will be moved/synced from secondary to primary"
         fi
     else
-            mvlogger "No new files will be moved/synced from cache to array"
-            mvlogger "No new files will be moved/synced from array to cache"
+            mvlogger "No new files will be moved/synced from primary to secondary"
+            mvlogger "No new files will be moved/synced from secondary to primary"
     fi
 }
 
@@ -793,17 +799,23 @@ processTheMoves () {
         [ $TESTMODE != "yes" ] && /usr/local/sbin/mdcmd set md_write_method 1
     fi
     # MOVER_ACTIONLIST header: 
-    # CACHEPOOLNAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|FILESIZE|POOLSUM|THRESHOLD|NBLINKS|INODE|ACTION|FROM|TO|FILEPATH
+    # PRIMARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|FILESIZE|POOLSUM|THRESHOLD|NBLINKS|INODE|ACTION|FROM|TO|FILEPATH
+
+    # Dry mode info:
+    if [ $TESTMODE = "yes" ]; then
+        mvlogger "Test Mode: yes, running rsync in dry-mode for moving and syncing"
+    fi
+
 
     # Loop through each line in the action list (except those where action is keep), starting by cache and then array
     GREP_CMDS=(
-    "grep '|move|' '$MOVER_ACTIONLIST' | grep -v '|move|/mnt/user0|'"
-    "grep '|move|/mnt/user0|' '$MOVER_ACTIONLIST'"
+    "grep '|move from primary|' '$MOVER_ACTIONLIST'"
+    "grep '|move from secondary|' '$MOVER_ACTIONLIST'"
     "grep '|sync|' '$MOVER_ACTIONLIST'"
     )
 
     for GREP_CMD in "${GREP_CMDS[@]}"; do
-        eval $GREP_CMD | while IFS="|" read -r CACHEPOOLNAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
+        eval $GREP_CMD | while IFS="|" read -r PRIMARYSTORAGENAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
                 [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
                 return
@@ -822,17 +834,17 @@ processTheMoves () {
             fi
 
             # Get files to rsync:
-            SYNCED_FILES=$(grep "|$INODE|" $MOVER_ACTIONLIST | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
+            SYNCED_FILES=$(grep "|$INODE|" $MOVER_ACTIONLIST | grep "|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
             GUI_CURRENT_FILE=$SYNCED_FILES
 
             # Proceed with rsync
-            if [ "$ACTION" = "move" ]; then
+            if [[ "$ACTION" =~ "move" ]]; then
                 # Some verbosity
                 GUI_ACTION="Moving to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 # Finalize RSYNC_CMD
                 RSYNC_CMD+=" --remove-source-files"   
-            elif [ "$ACTION" = "sync" ] ; then 
+            elif [[ "$ACTION" =~ "sync" ]] ; then 
                 # Some verbosity
                 GUI_ACTION="Synchronizing to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
@@ -845,7 +857,7 @@ processTheMoves () {
             eval "$RSYNC_CMD" "$SYNCED_FILES" "$DESTINATION/"
 
             # Setting mover status
-            if [ "$SOURCE" == "/mnt/user0" ]; then
+            if [[ "$SOURCE" =~ $PRIMARYSTORAGENAME ]]; then
                 REMAINING_ARRAY_SIZE=$(($REMAINING_ARRAY_SIZE - $FILESIZE))
                 REMAINING_ARRAY_FILES=$(($REMAINING_ARRAY_FILES - $NBLINKS))
             else
@@ -911,7 +923,7 @@ start() {
         getMoverSettings $MOVERTUNINGCFGFILE
     else
         mvlogger "Fatal error: $MOVERTUNINGCFGFILE does not exist, check this."
-        exit 6
+        exit 4
     fi
 
     # Only start if cache enabled and present
