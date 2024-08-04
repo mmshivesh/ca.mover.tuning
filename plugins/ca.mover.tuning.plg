@@ -15,6 +15,7 @@
 
 <CHANGES>
 ###Next version:
+- Unraid 7.0.0 beta2 Secondary storage Compatibility: minor enhancements (6.12 mover action naming) and... can now move between pools (tested on 7.0.0-beta2) !
 - Fix find not ignoring hidden files [R3yn4ld] (Thanks to helpful-tune3401)
 
 ###2024-08-04:
@@ -168,17 +169,6 @@ fi
 echo "Installing tuned mover script"
 cp /usr/local/emhttp/plugins/&name;/mover /usr/local/sbin/mover
 
-# Not needed anymore as using internal moving engine
-#if [[ -e /usr/local/bin/move ]]; then
-#  echo "Creating Soft link for 6.12 RC8 or newer since /usr/local/sbin/move is now located in /usr/local/bin/move"
-#  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
-#  ln -s /usr/local/bin/move /usr/local/sbin/move
-#elif [[ -e /usr/libexec/unraid/move ]]; then
-#  echo "Creating Soft link for 7.0 or newer since /usr/local/sbin/move is now located in /usr/libexec/unraid/move"
-#  if [[ -e /usr/local/sbin/move ]]; then rm /usr/local/sbin/move; fi
-#  ln -s /usr/libexec/unraid/move /usr/local/sbin/move
-#fi
-
 echo "Fixing permissions"
 chmod +x /usr/local/sbin/mover
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/*.php
@@ -214,6 +204,15 @@ else
   else
     echo "version=&version;" >> "$config_file"
   fi
+  if grep -q "threshold=" $config_file; then
+    old_thresh=$(grep -q "threshold=" $config_file | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
+    if ! grep -q "moveThreshold" "$config_file"; then
+      echo "moveThreshold=$old_thresh" >> "$config_file"
+    fi
+    if ! grep -q "freeingThreshold" "$config_file"; then
+      echo "freeingThreshold=$old_thresh" >> "$config_file"
+    fi  fi
+    sed '/threshold=/d' -i $config_file
 fi
 
 echo ""

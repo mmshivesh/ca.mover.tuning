@@ -98,31 +98,31 @@ Disable Mover running on a schedule:
 
 > This will prevent mover from running at the schedule set in Mover Settings.  You will only be able to run mover by manually invoking it.
 
-Only move if above this threshold of used cache space:
+Only move if above this threshold of used Primary (cache) space:
 : <select name="movingThreshold" size="1" class='narrow'>
 <?for ($t=0;$t<100;$t+=5):?>
 <?=mk_option($cfg['movingThreshold'], $t, "$t %")?>
 <?endfor;?>
 </select>
 
-> Set to the amount of disk space used on the cache drive for mover to run.
+> Set to the amount of disk space used on the Primary (cache) drive for mover to run.
 
-Free down to this level of used cache space:
+Free down to this level of used Primary (cache) space:
 : <select name="freeingThreshold" size="1" class='narrow'>
 <?for ($f=$f;$f>=0;$f-=5):?>
 <?=mk_option($cfg['freeingThreshold'], $f, "$f %")?>
 <?endfor;?>
 </select>
 
-> Set to the amount of disk space left on the cache drive after the mover ran.
+> Set to the amount of disk space left on the Primary (cache) drive after the mover ran.
 
-Move files off cache based on age?
+Move files off Primary (cache) based on age?
 : <select name="age" size='1' class='narrow' onchange='$(".myage").toggleAttr("disabled")'>
        <?=mk_option($cfg['age'],'no','No')?>
        <?=mk_option($cfg['age'],'yes','Yes')?>
 </select>
 
-> Select if you want to move files off of the cache based on their age - days old.
+> Select if you want to move files off of the Primary (cache) based on their age - days old.
 
 Move files that are greater than this many days old:
 : <select name="daysold" size="1" class='narrow myage' <?=$ageDisabled?>>
@@ -188,7 +188,7 @@ Move files that are larger than this size (In M).
 	<?endfor;?>
 </select>
 
-Move files off cache based on sparseness?
+Move files off Primary (cache) based on sparseness?
 : <select name="sparsnessf" size='1' class='narrow' onchange='$(".mysparsnessf").toggleAttr("disabled")'>
        <?=mk_option($cfg['sparsnessf'],'no','No')?>
        <?=mk_option($cfg['sparsnessf'],'yes','Yes')?>
@@ -220,7 +220,7 @@ Ignore files and folders listed inside of a text file:
 File list path:
 : <input type='text' name='filelistv' size='1' class='narrow myfilelistf' value='<?=$cfg['filelistv']?>' <?=$filelistfDisabled?>>
 
-> Full path to a file that contains a list of files and folder you want ignored from being moved off the cache pool.
+> Full path to a file that contains a list of files and folder you want ignored from being moved off the Primary (cache) pool.
 
 Ignore file types:
 : <select name='filetypesf' size='1' class='narrow' onchange='$(".myfiletypesf").toggleAttr("disabled")'>
@@ -278,24 +278,24 @@ Force turbo write on during mover:
 
 > Forces unRaid to switch to turbo write mode (reconstruct write) when mover is running
 
-Repair "Cache Only" and "Cache No" shares:
-: <select name='repairPrimary' size='1' class='narrow'>
-<?=mk_option($cfg['repairPrimary'],"no",'No')?>
-<?=mk_option($cfg['repairPrimary'],"yes","Yes")?>
+Rebalance shares:
+: <select name='rebalanceShares' size='1' class='narrow'>
+<?=mk_option($cfg['rebalanceShares'],"no",'No')?>
+<?=mk_option($cfg['rebalanceShares'],"yes","Yes")?>
 </select>
 
-> This will move files from 'Cache: No' shares to array, and files from 'Cache: Only' shares to cache. 
-> May imply moving older files more files from 'Cache: Prefer' or 'Cache: Yes' to free some space. 
+> This will move files from Primary only (cache:no or cache:only) shares to primary storage if spread elsewhere. 
+> May imply moving older files from Primary->Secondary or Secondary->Primary (cache:prefer or cache:yes) to free some space. 
 > Usefull when share settings have changed, but take some extra time. Set to yes only when necessary.
 
-Synchronize cache files to array
+Synchronize Primary files to Secondary
 : <select name='synchronizeCache' size='1' class='narrow'>
 <?=mk_option($cfg['synchronizeCache'],"no",'No')?>
 <?=mk_option($cfg['synchronizeCache'],"yes","Yes")?>
 </select>
 
-> This will synchronise the cached files on both cache and array so they are backed up and parity protected. 
-> Reading and modification will still occur on cache.
+> This will synchronise the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
+> Reading and modification will still occur on Primary.
 
 Log Mover Tuning plugin actions
 : <select name='logging' size='1' class='narrow'>
@@ -356,22 +356,22 @@ Script to run after mover (No checks, always runs):
 
 > Path to a script that will be run after mover finishes.  This script will always be run.
 
-Move All from Cache-Yes shares when disk is above a certain percentage:
+Move All from Primary->Secondary (cache:yes) shares when disk is above a certain percentage:
 : <select name='omovercfg' size='1' class='narrow' onchange='$(".myomthresh").toggleAttr("disabled")'>
 <?=mk_option($cfg['omovercfg'],"no","No")?>
 <?=mk_option($cfg['omovercfg'],"yes","Yes")?>
 </select>
 
-> Set to "Yes" if you want to move all files from a Cache-Yes share to the array if the percentage below is exceeded.  This is similar to the original mover and does not apply any filters from this plug-in to the find command sent to the mover binary.
+> Set to "Yes" if you want to move all files from a Primary->Secondary (cache:yes) share to the array if the percentage below is exceeded.  This is similar to the original mover and does not apply any filters from this plug-in to the find command sent to the mover binary.
 
-Move All from Cache-yes shares pool percentage:
+Move All from Primary->Secondary shares pool percentage:
 : <select name="omoverthresh" size="1" class='narrow myomthresh' <?=$omoverthreshDisabled?>>
 <?for ($om;$om<=100;$om+=5):?>
 <?=mk_option($cfg['omoverthresh'], $om, "$om %")?>
 <?endfor;?>
 </select>
 
-> Set to the amount of disk space used on the cache pool to initiate a move of all files in a cache-yes share.  Filters will still run after, for any remaining pool's that do not meet this threshold.  This threshold should at a minimum be 5% larger than "Only move at this threshold of used cache space:" above. 
+> Set to the amount of disk space used on the Primary pool to initiate a move of all files in a Primary->Secondary (cache:yes) share.  Filters will still run after, for any remaining pool's that do not meet this threshold.  This threshold should at a minimum be 5% larger than "Only move at this threshold of used primary (cache) space:" above. 
 
 Move Now button follows plug-in filters:
 : <select name='movenow' size='1' id='movenowbtn' class='narrow'>
