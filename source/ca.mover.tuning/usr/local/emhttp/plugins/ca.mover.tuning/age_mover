@@ -122,15 +122,11 @@ getMoverSettings() {
         echo "${value//\"/}"  # Print value or empty string if not found, without quotes
     }
 
+    timezone=$(grep "timeZone=" "/boot/config/ident.cfg" | cut -d '"' -f 2)
+
     if [[ ! -f "$config_file" ]]; then
         mvlogger "Error: Config file '$config_file' not found."
         return 1
-    fi
-
-    ## Read version
-    if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-        VERSION=$(cfg version)
-        mvlogger "Mover Tuning Plugin version $VERSION"
     fi
 
     ## Read in default threshold limit.
@@ -149,8 +145,8 @@ getMoverSettings() {
         FREEINGPCTLIMIT=$(cfg freeingThreshold)
         [ -z $FREEINGPCTLIMIT ] && FREEINGPCTLIMIT=$MOVINGPCTTHRESHOLD
         mvlogger "Using global freeing threshold: $FREEINGPCTLIMIT %"
-    elif [ ! -z $(cfg freeingThreshold)]; then
-        FREEINGPCTLIMIT=$(cfg freeingThreshold)Using 
+    elif [ ! -z $(cfg freeingThreshold) ]; then
+        FREEINGPCTLIMIT=$(cfg freeingThreshold) 
         mvlogger "Using share freeing threshold: $FREEINGPCTLIMIT %"
     fi
 
@@ -192,7 +188,7 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg afterScript) ]; then
-        #mvlogger "No After Script argument supplied"
+        #mvlogger "No After Script argument provided"
         [[ ! "$config_file" =~ shareOverrideConfig ]] && AFTERSCRIPT=""
     else
         AFTERSCRIPT=$(cfg afterScript)
@@ -200,7 +196,7 @@ getMoverSettings() {
     fi
 
     if [ -z $(cfg beforeScript) ]; then
-        #mvlogger "No Before Script argument supplied"
+        #mvlogger "No Before Script argument provided"
         [[ ! "$config_file" =~ shareOverrideConfig ]] && BEFORESCRIPT=""
     else
         BEFORESCRIPT=$(cfg beforeScript)
@@ -336,20 +332,48 @@ getMoverSettings() {
         SYNCHRONIZECACHE=$(cfg synchronizeCache)
         if [ $SYNCHRONIZECACHE = "yes" ]; then
             LASTCACHESYNC=$(cfg lastCacheSync)
-            [ -z $LASTCACHESYNC ] && LASTCACHESYNC=0
-            mvlogger "Synchronize Primary to Secondary: $SYNCHRONIZECACHE"
+            if [[ ! "$config_file" =~ shareOverrideConfig ]]; then
+                [ -z $LASTCACHESYNC ] && LASTCACHESYNC=0
+                mvlogger "Synchronize Primary to Secondary: $SYNCHRONIZECACHE - Last sync date: $(TZ=$timezone date +%FT%H%M%S -d "@$LASTCACHESYNC")"
+            else
+                mvlogger "Synchronize Primary to Secondary: $SYNCHRONIZECACHE"
+            fi
         fi
+    fi
+
+    if [ -z $(cfg resynchronizeCache) ]; then
+        if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+            mvlogger "No Resynchronize argument provided, defaulting to no"
+            echo 'resynchronizeCache="no"' >> $config_file
+            RESYNCHRONIZECACHE="no"
+        fi
+    else
+        RESYNCHRONIZECACHE=$(cfg resynchronizeCache)
+        if [ $RESYNCHRONIZECACHE != "no" ]; then
+            mvlogger "Resynchronize Primary to Secondary: $RESYNCHRONIZECACHE"
+        fi
+        [ $RESYNCHRONIZECACHE = "run-once" ] && RESYNCHRONIZECACHE="yes"
     fi
 
     if [ -z $(cfg testmode) ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-            mvlogger "No Test Mode argument supplied, defaulting to yes"
+            mvlogger "No Test Mode argument provided, defaulting to yes"
             echo 'testmode="yes"' >> $config_file
             TESTMODE="yes"
         fi
     else
         TESTMODE=$(cfg testmode)
         [ $TESTMODE = "yes" ] && mvlogger "Test Mode: $TESTMODE"
+    fi
+}
+
+resetRunOnceMoverSettings() {
+    local config_file="$1"
+    if grep -q "run-once" $1; then
+        mvlogger "Reset 'Run-once' settings to 'no' in $1"
+        sed 's|"run-once"|"no"|g' -i $1
+    #else
+        #mvlogger "No run-once settings to reset in $1"
     fi
 }
 
@@ -372,7 +396,7 @@ createFilteredFilelist (){
     mvlogger "$(titleLine 'FILTERING FILES' '*')"
     # create a file containing the list off all shareUseCache yes or prefer whith this format:
     echo "PRIMARYSTORAGENAME|SECONDARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|PRIMARYSIZETRESH|FILESIZE|SPARSENESS|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
-    for SHARECFG in /boot/config/shares/*; do
+    for SHARECFG in /boot/config/shares/*.cfg; do
         if [ -e $SOFTSTOPFILE ]; then
             [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
             return
@@ -486,8 +510,12 @@ createFilteredFilelist (){
                 mvlogger "=> Moving all files from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME"
             elif [ $POOLPCTUSED -lt $MOVINGPCTTHRESHOLD ]; then
                 mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
-                mvlogger "=> Skipping"
-                continue
+                if [ $SYNCHRONIZECACHE = "yes" ] || [ $RESYNCHRONIZECACHE ="yes" ]; then
+                    mvlogger "=> No file will be moved but share processed as Synchronize Primary->Secondary option is set"
+                else
+                    mvlogger "=> Skipping"
+                    continue
+                fi
             else
                 mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Pool is above moving threshold percentage:  $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
                 mvlogger "=> Will smart move old files from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME. Nothing will be moved from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME"
@@ -644,7 +672,7 @@ decideMoveActions () {
     # Fields: $1:PRIMARYSTORAGENAME $2:SECONDARYSTORAGENAME $3:SHARENAME $4:SHAREUSECACHE $5:MODIFICATIONTIME
     # $6:PRIMARYSIZETRESH $7:FILESIZE $8:SPARSENESS $9:NBLINKS $10:INODE $11:FILEPATH
     
-    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" -v REBALANCESHARES=$REBALANCESHARES '
+    awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v REBALANCESHARES=$REBALANCESHARES -v RESYNCHRONIZECACHE=$RESYNCHRONIZECACHE '
         BEGIN {
             if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
                 exit 1
@@ -683,65 +711,32 @@ decideMoveActions () {
                 }
             }
 
-            # if not primary or secondary then it is unattended
-            if ((storage_path !~ $1 && storage_path !~ $2) && ( ($1 == "user0" || $2 == "user0") && storage_path !~ "disk")) {
-                if (REBALANCESHARES == "yes") {
-                    action = ($4 == "only" || ($4 == "prefer" && pool_sums[$1] <= $6)) ? "move unattended to primary" : "move unattended to secondary"
-                    if (action == "move unattended to primary" && SYNCHRONIZECACHE == "yes" && $4 != "only" )  {
-                        action = "move unattended to primary"
-                        source = storage_path
-                        destination = "/mnt/" $1
-                        pool_stats[$1]["files_from_unattended"] += 1
-                        pool_stats[$1]["total_size_from_unattended"] += $7
-                        # Add a line in mover_action as intermediary step
-                        printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $3, $4, $5, $7, pool_sums[$1], $6, $9, $10, action, source, destination, file_path
-                        action="sync unattended to secondary"
-                        source = "/mnt/" $1
-                        destination = "/mnt/" $2
-                    } else {
-                        if (action == "move unattended to primary") {
-                            action = "move unattended to primary"
-                            source = storage_path
-                            destination = "/mnt/" $1
-                        } else {
-                            action = "move unattended to secondary"
-                            source = storage_path
-                            destination = "/mnt/" $2
-                        }
-                    }
-                    pool_stats[$1]["files_from_unattended"] += 1
-                    pool_stats[$1]["total_size_from_unattended"] += $7
-                } else {
-                    action="keep misplaced" #If not on primary nor secondary, file will be tagged misplaced                
-                    source = storage_path
-                    destination = "none"
-                }
-            } else {
-                # Check where file is stored. Priority to primary in case of dupe
-                #if file exists on primary
-                if (system("[ -e \"" "/mnt/" $1 "/" file_path "\" ]") == 0) {
-                    # Make decision to move or keep:
-                    action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
+#           Check where file is stored. Priority to primary in case of dupe
+            if (storage_path ~ $1) {
+                # Make decision to move or keep:
+                action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
 
-                    if (action == "keep on primary")  {
-                        if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC ))  {
-                            action = "sync from primary"
-                            source = "/mnt/" $1
-                            destination = "/mnt/" $2
-                            pool_stats[$1]["files_from_primary"] += 1
-                            pool_stats[$1]["total_size_from_primary"] += $7
-                        } else {
-                            destination = "none"
-                        }
-                    }
-                    if (action == "move from primary") {
-                        source = "/mnt/" $1
+                if (action == "keep on primary")  {
+                    source = storage_path
+                    if (SYNCHRONIZECACHE == "yes" && $4 != "only" && $5 >= LASTCACHESYNC )  {
+                        action = "sync from primary"
                         destination = "/mnt/" $2
                         pool_stats[$1]["files_from_primary"] += 1
                         pool_stats[$1]["total_size_from_primary"] += $7
+                    } else {
+                        destination = "none"
                     }
-                # else if file does not exists on primary
-                } else {
+                }
+
+                # Update pool statistics and set destination if moving the file
+                if (action == "move from primary") {
+                    source = storage_path
+                    destination = "/mnt/" $2
+                    pool_stats[$1]["files_from_primary"] += 1
+                    pool_stats[$1]["total_size_from_primary"] += $7
+                }
+            } else {
+                if (storage_path ~ $2 || ($2 == "user0" && storage_path ~ "disk")) {
                     # Make decision to move or keep:
                     action = ($4 == "only" || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
@@ -759,6 +754,38 @@ decideMoveActions () {
                         destination = "/mnt/" $1
                         pool_stats[$1]["files_from_secondary"] += 1
                         pool_stats[$1]["total_size_from_secondary"] += $7
+                    }
+                } else {
+                    if (REBALANCESHARES == "yes") {
+                        action = ($4 == "only" || ($4 == "prefer" && pool_sums[$1] <= $6)) ? "move unattended to primary" : "move unattended to secondary"
+                        if (action == "move unattended to primary" && SYNCHRONIZECACHE == "yes" && $4 != "only" )  {
+                            action = "move unattended to primary"
+                            source = storage_path
+                            destination = "/mnt/" $1
+                            pool_stats[$1]["files_from_unattended"] += 1
+                            pool_stats[$1]["total_size_from_unattended"] += $7
+                            # Add a line in mover_action as intermediary step
+                            printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $3, $4, $5, $7, pool_sums[$1], $6, $9, $10, action, source, destination, file_path
+                            action="sync unattended to secondary"
+                            source = "/mnt/" $1
+                            destination = "/mnt/" $2
+                        } else {
+                            if (action == "move unattended to primary") {
+                                action = "move unattended to primary"
+                                source = storage_path
+                                destination = "/mnt/" $1
+                            } else {
+                                action = "move unattended to secondary"
+                                source = storage_path
+                                destination = "/mnt/" $2
+                            }
+                        }
+                        pool_stats[$1]["files_from_unattended"] += 1
+                        pool_stats[$1]["total_size_from_unattended"] += $7
+                    } else {
+                        action="keep misplaced" #If not on primary nor secondary, file will be tagged misplaced                
+                        source = storage_path
+                        destination = "none"
                     }
                 }
             }
@@ -831,7 +858,7 @@ decideMoveActions () {
             # Read data line by line using while loop
             while IFS="|" read -r PRIMARYSTORAGENAME PRIMARYFILES PRIMARYSIZE SECONDARYFILES SECONDARYSIZE; do
                 if [ -e $SOFTSTOPFILE ]; then
-                    mvlogger "Soft Stopping requested"
+                    [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
                     break
                 fi
                 # Check if line is not the total line nor the header line
@@ -950,7 +977,7 @@ processTheMoves () {
         done
     done
 
-    if grep -q "|sync|" $MOVER_ACTIONLIST ; then
+    if grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then
             sed -i "s/lastCacheSync=.*$/lastCacheSync=$EPOCH/" "$MOVERTUNINGCFGFILE"
@@ -958,7 +985,6 @@ processTheMoves () {
             echo "lastCacheSync=$EPOCH" >> "$MOVERTUNINGCFGFILE"
         fi
     fi
-
 
     if [ $ENABLETURBO = "yes" ] ; then
         turbo_write_mode=$(cat /var/local/emhttp/var.ini | grep "md_write_method=" | cut -d'"' -f2)
@@ -970,7 +996,7 @@ processTheMoves () {
 
 start() {
     mvlogger "$(titleLine 'MOVER START' '*')"
-    
+    mvlogger "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)"
     # Do not start if already running
     if [ -f $PIDFILE ]; then
         if ps h $(cat $PIDFILE) | grep mover; then
@@ -1065,6 +1091,11 @@ start() {
             mvlogger "Skipping"
         fi
     fi
+
+    #Reset run-once settings
+    for config_file in $MOVERTUNINGCFGFILE /boot/config/plugins/ca.mover.tuning/shareOverrideConfig/*.cfg; do
+        resetRunOnceMoverSettings $MOVERTUNINGCFGFILE
+    done
     mvlogger "$(titleLine 'WE ARE DONE !' '*')"
 }
 
