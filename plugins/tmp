@@ -1,0 +1,35 @@
+if [[ ! -f "$config_file" ]]; then
+  echo "Creating file $config_file with default configuration."
+  # Create the file with some default values
+  echo 'testmode="yes"' > $config_file
+  echo 'logging="yes"' >> $config_file
+  echo 'movenow="yes"' >> $config_file
+  echo "version=&version;" >> "$config_file"
+else
+  echo "Updating config file"
+  echo "Forcing test mode"
+  if grep -q "testmode" "$config_file"; then
+    sed -i "s/testmode=.*$/testmode=\"yes\"/" "$config_file"
+  else
+    echo 'testmode="yes"' >> "$config_file"
+  fi
+  echo "Updating version number"
+  if grep -q "version" "$config_file"; then
+    sed -i "s/version=.*$/version=&version;/" "$config_file"
+  else
+    echo "version=&version;" >> "$config_file"
+  fi
+  if grep -q "threshold=" $config_file; then
+    echo "Updating movingThreshold"
+    sed "s/threshold=/movingThreshold=/" -i "$config_file"
+  fi
+  if grep -q 'freeingThreshold=""' "$config_file"; then
+      echo "Updating freeingThreshold"
+      thresh=$(grep "movingThreshold=" $config_file | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
+      sed "s/freeingThreshold=.*$/freeingThreshold=$thresh/" -i "$config_file"
+  fi
+  if ! grep -q 'freeingThreshold=' $config_file; then
+    echo "Updating freeingThreshold"
+    grep 'movingThreshold=' "$config_file" | sed 's/movingThreshold/freeingThreshold/' >> "$config_file"
+  fi
+fi
