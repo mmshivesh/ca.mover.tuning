@@ -114,7 +114,7 @@ Free down to this level of used Primary (cache) space:
 <?endfor;?>
 </select>
 
-> Set to the amount of disk space left on the Primary (cache) drive after the mover ran.
+> Set to the amount of disk space used on the Primary (cache) drive after the mover ran.
 
 Move files off Primary (cache) based on age?
 : <select name="age" size='1' class='narrow' onchange='$(".myage").toggleAttr("disabled")'>
@@ -281,11 +281,11 @@ Force turbo write on during mover:
 Rebalance shares:
 : <select name='rebalanceShares' size='1' class='narrow'>
 <?=mk_option($cfg['rebalanceShares'],"no",'No')?>
-<?=mk_option($cfg['rebalanceShares'],"yes","Yes")?>
+<?=mk_option($cfg['rebalanceShares'],"yes","Run once")?>
 </select>
 
-> This will move files from Primary only (cache:no or cache:only) shares to primary storage if spread elsewhere. 
-> May imply moving older files from Primary->Secondary or Secondary->Primary (cache:prefer or cache:yes) to free some space. 
+> This will move files from shares to their primary and secondary storage if spread elsewhere. 
+> May imply moving older files from Primary->Secondary or Secondary->Primary if allowed (cache:prefer or cache:yes) to free some space. 
 > Usefull when share settings have changed, but take some extra time. Set to yes only when necessary.
 
 Synchronize Primary files to Secondary

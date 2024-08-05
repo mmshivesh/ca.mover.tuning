@@ -100,7 +100,7 @@ _(Free down to this level of used Primary (cache) space)_:
 <?endfor;?>
 </select>
 
-> Set to the amount of disk space left on the Primary (cache) drive after the mover ran.
+> Set to the amount of disk space used on the Primary (cache) drive after the mover ran.
 
 _(Move files off Primary (cache) based on age)_:
 : <select name="age" onchange='$(".myage").toggleAttr("disabled")'>
