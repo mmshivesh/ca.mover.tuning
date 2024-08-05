@@ -74,22 +74,30 @@ function titleLine() {
 
 # Function to convert byte size to human-readable format
 function convert_bytes() {
-  local byte_size="$1"
-  local suffixes=("B" "KiB" "MiB" "GiB" "TiB" "PiB" "EiB" "ZiB" "YiB")
-  local i=0
+    local bytes="$1"
+    local suffixes=("B" "KiB" "MiB" "GiB" "TiB" "PiB" "EiB" "ZiB" "YiB")
+    local i=0
 
-  if [ byte_size = 0 ]; then
-    printf "%d %s\n" "$byte_size" "${suffixes[i]}"
-    return 0
-  fi
+    if (( bytes == 0 )); then
+        printf "%d %s\n" "$bytes" "${suffixes[i]}"
+        return 0
+    fi
 
-  while (( byte_size >= 1024 )); do
-    (( byte_size /= 1024 ))
-    (( ++i ))
-  done
-
-  printf "%d %s\n" "$byte_size" "${suffixes[i]}"
+    if command -v bc >/dev/null; then
+        while (( $(bc <<< "$bytes >= 1024") )); do
+            bytes=$(bc <<< "scale=2; $bytes / 1024")
+            (( i++ ))
+        done
+        printf "%0.2f %s\n" "$bytes" "${suffixes[i]}"
+    else
+        while (( bytes >= 1024 )); do
+            (( bytes /= 1024 ))
+            (( i++ ))
+        done
+        printf "%d %s\n" "$bytes" "${suffixes[i]}"
+    fi
 }
+
 
 # Function for verbose output and logging
 mvlogger() {
@@ -936,7 +944,7 @@ processTheMoves () {
             fi
 
             # Get files to rsync:
-            SYNCED_FILES=$(grep "|$INODE|" $MOVER_ACTIONLIST | grep "|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
+            SYNCED_FILES=$(grep "|$INODE|" $MOVER_ACTIONLIST | grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
             GUI_CURRENT_FILE=$SYNCED_FILES
 
             # Proceed with rsync
@@ -995,8 +1003,8 @@ processTheMoves () {
 }
 
 start() {
-    mvlogger "$(titleLine 'MOVER START' '*')"
-    mvlogger "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)"
+    mvlogger "$(titleLine "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)" '*')"
+    #mvlogger "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)"
     # Do not start if already running
     if [ -f $PIDFILE ]; then
         if ps h $(cat $PIDFILE) | grep mover; then
