@@ -281,12 +281,11 @@ Force turbo write on during mover:
 Rebalance shares:
 : <select name='rebalanceShares' size='1' class='narrow'>
 <?=mk_option($cfg['rebalanceShares'],"no",'No')?>
-<?=mk_option($cfg['rebalanceShares'],"yes","Run once")?>
+<?=mk_option($cfg['rebalanceShares'],"yes","Yes")?>
 </select>
 
 > This will move files from shares to their primary and secondary storage if spread elsewhere. 
 > May imply moving older files from Primary->Secondary or Secondary->Primary if allowed (cache:prefer or cache:yes) to free some space. 
-> Usefull when share settings have changed, but take some extra time. Set to yes only when necessary.
 
 Synchronize Primary files to Secondary
 : <select name='synchronizeCache' size='1' class='narrow'>
@@ -294,8 +293,9 @@ Synchronize Primary files to Secondary
 <?=mk_option($cfg['synchronizeCache'],"yes","Yes")?>
 </select>
 
-> This will synchronise the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
+> This will synchronize the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
 > Reading and modification will still occur on Primary.
+> Only modified files since last sync are synchronized
 
 Log Mover Tuning plugin actions
 : <select name='logging' size='1' class='narrow'>
@@ -380,6 +380,17 @@ Move Now button follows plug-in filters:
 </select>
 
 > Select yes to to follow plug-in filters, no to run original mover from button.
+
+Resynchronize all Primary files to Secondary:
+: <select name='resynchronizeCache' size='1' class='narrow'>
+<?=mk_option($cfg['resynchronizeCache'],"no",'No')?>
+<?=mk_option($cfg['resynchronizeCache'],"run-once","Run once")?>
+<?=mk_option($cfg['resynchronizeCache'],"yes","Yes")?>
+</select>
+
+> This will resynchronize the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
+> All files will be synchronized again independently of modification time.
+> This can be a long operation. Run-once setting will reset back to No after next run
 
 </div>
 </div>

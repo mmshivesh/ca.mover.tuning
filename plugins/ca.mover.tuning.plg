@@ -14,7 +14,11 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###N2024.08.05
+###2024.08.06
+    - Added Resynchronize all Primary files to Secondary option [R3yn4ld]: Resynchronize all Primary files to Secondary. This will resynchronize the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. All files will be synchronized again independently of modification time. This can be a long operation. Run-once setting will reset back to No after next run
+    - Minor bug fixes and improvements [R3yn4ld]
+
+###2024.08.05
 - Enhance previous "Repair Primary" option. Renamed it "Rebalance shares". This will move files from shares to their primary and secondary storage if spread elsewhere. May imply moving older files from Primary->Secondary or Secondary->Primary if allowed (cache:prefer or cache:yes) to free some space.   [R3yn4ld]
 - Bug fixes [R3yn4ld]
 

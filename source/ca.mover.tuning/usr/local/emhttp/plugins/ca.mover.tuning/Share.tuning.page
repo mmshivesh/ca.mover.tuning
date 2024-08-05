@@ -252,7 +252,6 @@ Move All from Primary->Secondary (cache:yes) shares pool percentage:
 
 > Set to the amount of disk space used on the cache pool to initiate a move of all files in a Primary->Secondary (cache:yes) share.  Filters will still run after, for any remaining pool's that do not meet this threshold.  This threshold should at a minimum be 5% larger than "Only move at this threshold of used cache space:" above. 
 
-
 </div>
 </div>
 
