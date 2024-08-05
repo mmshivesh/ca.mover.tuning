@@ -944,7 +944,7 @@ processTheMoves () {
             fi
 
             # Get files to rsync:
-            SYNCED_FILES=$(grep "|$INODE|" $MOVER_ACTIONLIST | grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
+            SYNCED_FILES=$(grep "|$NBLINKS|$INODE|" $MOVER_ACTIONLIST | grep "|$MODIFICATIONTIME|$FILESIZE|" |  grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
             GUI_CURRENT_FILE=$SYNCED_FILES
 
             # Proceed with rsync
