@@ -402,8 +402,13 @@ moverStatusWrite() {
 
 createFilteredFilelist (){
     mvlogger "$(titleLine 'FILTERING FILES' '*')"
+
     # create a file containing the list off all shareUseCache yes or prefer whith this format:
     echo "PRIMARYSTORAGENAME|SECONDARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|PRIMARYSIZETRESH|FILESIZE|SPARSENESS|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
+
+    # Print info about bc if not installed
+    $(command -v bc >/dev/null) || mvlogger "Info: you may optionally install 'bc' from 'NerdTools' to have more precise size value" 
+
     for SHARECFG in /boot/config/shares/*.cfg; do
         if [ -e $SOFTSTOPFILE ]; then
             [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
@@ -463,8 +468,8 @@ createFilteredFilelist (){
         MOVESIZETHRESH=$(( $POOLSIZE * $MOVINGPCTTHRESHOLD / 100))
 
         # Print pool info:
-        mvlogger "Primary Pool: $PRIMARYSTORAGENAME - used: $POOLPCTUSED % ($(convert_bytes $POOLBYTEUSED))"
-        mvlogger "Secondary Pool: $SECONDARYSTORAGENAME"
+        mvlogger "Primary storage: $PRIMARYSTORAGENAME - used: $POOLPCTUSED % ($(convert_bytes $POOLBYTEUSED))"
+        mvlogger "Secondary storage: $SECONDARYSTORAGENAME"
 
 
         # Determine sharepath
@@ -518,7 +523,7 @@ createFilteredFilelist (){
                 mvlogger "=> Moving all files from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME"
             elif [ $POOLPCTUSED -lt $MOVINGPCTTHRESHOLD ]; then
                 mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Pool is below moving threshold percentage: $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
-                if [ $SYNCHRONIZECACHE = "yes" ] || [ $RESYNCHRONIZECACHE ="yes" ]; then
+                if [ $SYNCHRONIZECACHE = "yes" ] || [ $RESYNCHRONIZECACHE = "yes" ]; then
                     mvlogger "=> No file will be moved but share processed as Synchronize Primary->Secondary option is set"
                 else
                     mvlogger "=> Skipping"
@@ -757,10 +762,10 @@ decideMoveActions () {
                     # Update pool statistics and set destination if moving the file
                     if (action == "move from secondary") {
                         source = storage_path
-                        if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" )) {
+                        destination = "/mnt/" $1
+                        if (SYNCHRONIZECACHE == "yes" && $4 != "only")  {
                             action = "sync from secondary"
                         }
-                        destination = "/mnt/" $1
                         pool_stats[$1]["files_from_secondary"] += 1
                         pool_stats[$1]["total_size_from_secondary"] += $7
                     }
