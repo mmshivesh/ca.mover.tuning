@@ -932,7 +932,6 @@ processTheMoves () {
     # Ignore "grep '|keep on primary|' '$MOVER_ACTIONLIST'" action because it's not an action
 
     for GREP_CMD in "${GREP_CMDS[@]}"; do
-        mvlogger "Mover action: $(echo $GREP_CMD | cut -d'|' -f2)"
         eval $GREP_CMD | while IFS="|" read -r PRIMARYSTORAGENAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
                 [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
@@ -988,8 +987,16 @@ processTheMoves () {
         done
     done
 
+    mvlogger "$(titleLine "Cleaning up" '-')"
+    grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq | while read SHARENAME; do 
+        mvlogger "Deleting empty dirs in $SHARENAME..."
+        find /mnt/*/$SHARENAME -type d -empty -delete
+    done
+
+
     if grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
+        mvlogger "Set last sync date in config file: $EPOCH = $NOW"
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then
             sed -i "s/lastCacheSync=.*$/lastCacheSync=$EPOCH/" "$MOVERTUNINGCFGFILE"
         else
