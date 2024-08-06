@@ -711,6 +711,7 @@ decideMoveActions () {
             # Extract the part after the first three slashes (/mnt/pool/) in the ninth field (filepath)
             split($11, path_parts, "/")
             storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
+            storage_pool = path_parts[3]
             file_path = ""
             for (i = 4; i <= length(path_parts); i++) {
                 file_path = file_path path_parts[i]
@@ -719,14 +720,14 @@ decideMoveActions () {
                 }
             }
 
-#           Check where file is stored. Priority to primary in case of dupe
-            if (storage_path ~ $1) {
+            #Check where file is stored. Priority to primary in case of dupe
+            if (storage_pool == $1) {
                 # Make decision to move or keep:
                 action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
 
                 if (action == "keep on primary")  {
                     source = storage_path
-                    if (SYNCHRONIZECACHE == "yes" && $4 != "only" && $5 >= LASTCACHESYNC )  {
+                    if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" ) )  {
                         action = "sync from primary"
                         destination = "/mnt/" $2
                         pool_stats[$1]["files_from_primary"] += 1
@@ -744,7 +745,7 @@ decideMoveActions () {
                     pool_stats[$1]["total_size_from_primary"] += $7
                 }
             } else {
-                if (storage_path ~ $2 || ($2 == "user0" && storage_path ~ "disk")) {
+                if (storage_pool == $2 || ($2 == "user0" && storage_pool ~ "disk")) {
                     # Make decision to move or keep:
                     action = ($4 == "only" || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
@@ -756,7 +757,7 @@ decideMoveActions () {
                     # Update pool statistics and set destination if moving the file
                     if (action == "move from secondary") {
                         source = storage_path
-                        if (SYNCHRONIZECACHE == "yes" && $3 != "only") {
+                        if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" )) {
                             action = "sync from secondary"
                         }
                         destination = "/mnt/" $1
@@ -916,15 +917,17 @@ processTheMoves () {
     # Loop through each line in the action list (except those where action is keep), starting by cache and then array
     GREP_CMDS=(
         "grep '|move from primary|' '$MOVER_ACTIONLIST'"
-        "grep '|move unattended to primary|' '$MOVER_ACTIONLIST'"
+        "grep '|move unattended to secondary|' '$MOVER_ACTIONLIST'"
         "grep '|sync from primary|' '$MOVER_ACTIONLIST'"
         "grep '|move from secondary|' '$MOVER_ACTIONLIST'"
         "grep '|sync from secondary|' '$MOVER_ACTIONLIST'"
-        "grep '|move unattended to secondary|' '$MOVER_ACTIONLIST'"
+        "grep '|move unattended to primary|' '$MOVER_ACTIONLIST'"
+        "grep '|sync unattended to secondary|' '$MOVER_ACTIONLIST'"
     )
     # Ignore "grep '|keep on primary|' '$MOVER_ACTIONLIST'" action because it's not an action
 
     for GREP_CMD in "${GREP_CMDS[@]}"; do
+        mvlogger "Mover action: $(echo $GREP_CMD | cut -d'|' -f2)"
         eval $GREP_CMD | while IFS="|" read -r PRIMARYSTORAGENAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
                 [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
@@ -944,17 +947,11 @@ processTheMoves () {
             fi
 
             # Get files to rsync:
-            SYNCED_FILES=$(grep "|$NBLINKS|$INODE|" $MOVER_ACTIONLIST | grep "|$MODIFICATIONTIME|$FILESIZE|" |  grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
+            SYNCED_FILES=$(grep "|$NBLINKS|$INODE|" $MOVER_ACTIONLIST | grep "|$MODIFICATIONTIME|" |  grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
             GUI_CURRENT_FILE=$SYNCED_FILES
 
             # Proceed with rsync
-            if [[ "$ACTION" =~ "move" ]] && [[ "$ACTION" =~ "sync" ]]; then
-                # Some verbosity
-                GUI_ACTION="Moving to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
-                mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
-                # Finalize RSYNC_CMD
-                RSYNC_CMD+=" --remove-source-files"   
-            elif [[ "$ACTION" =~ "move" ]]; then
+            if [[ "$ACTION" =~ "move" ]]; then
                 # Some verbosity
                 GUI_ACTION="Moving to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Moving $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
@@ -965,6 +962,7 @@ processTheMoves () {
                 GUI_ACTION="Synchronizing to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
             else
+                mvlogger "Warning: no action for $FILEPATH"
                 continue
             fi
 
