@@ -170,6 +170,7 @@ The 'post-install' script
 -->
 <FILE Run="/bin/bash">
 <INLINE>
+echo ""
 if [[ -e /usr/local/sbin/mover ]]; then
    if [[ ! -f /usr/local/sbin/mover.old ]]; then
      echo "Backing up current /usr/local/sbin/mover binary"
@@ -189,7 +190,6 @@ if ! pgrep ahe_mover; then
   rm "/var/run/mover.pid"
   rm "/var/run/moversoft.stop"
 fi
-echo ""
 echo "Fixing permissions"
 chmod +x /usr/local/sbin/mover
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/*.php
@@ -203,7 +203,6 @@ config_file=/boot/config/plugins/&name;/&name;.cfg;
 if [[ $(cat $config_file | wc -l) -eq 1 ]]; then
   rm $config_file
 fi
-echo ""
 if [[ ! -f "$config_file" ]]; then
   echo "Creating file $config_file with default configuration."
   # Create the file with some default values
@@ -213,29 +212,29 @@ if [[ ! -f "$config_file" ]]; then
   echo "version=&version;" >> "$config_file"
 else
   echo "Updating config file"
-  echo "Forcing test mode"
+  echo "- Forcing test mode"
   if grep -q "testmode" "$config_file"; then
     sed -i "s/testmode=.*$/testmode=\"yes\"/" "$config_file"
   else
     echo 'testmode="yes"' >> "$config_file"
   fi
-  echo "Updating version number"
+  echo "- Updating version number"
   if grep -q "version" "$config_file"; then
     sed -i "s/version=.*$/version=&version;/" "$config_file"
   else
     echo "version=&version;" >> "$config_file"
   fi
   if grep -q "threshold=" $config_file; then
-    echo "Updating movingThreshold"
+    echo "- Updating movingThreshold"
     sed "s/threshold=/movingThreshold=/" -i "$config_file"
   fi
   if grep -q 'freeingThreshold=""' "$config_file"; then
-      echo "Updating freeingThreshold"
+      echo "- Updating freeingThreshold"
       thresh=$(grep "movingThreshold=" $config_file | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
       sed "s/freeingThreshold=.*$/freeingThreshold=$thresh/" -i "$config_file"
   fi
   if ! grep -q 'freeingThreshold=' $config_file; then
-    echo "Updating freeingThreshold"
+    echo "- Updating freeingThreshold"
     grep 'movingThreshold=' "$config_file" | sed 's/movingThreshold/freeingThreshold/' >> "$config_file"
   fi
 fi
