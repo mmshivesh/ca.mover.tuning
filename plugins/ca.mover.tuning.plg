@@ -185,7 +185,7 @@ fi
 echo "Installing tuned mover script"
 cp /usr/local/emhttp/plugins/&name;/mover /usr/local/sbin/mover
 # Cleaning eventual leftovers
-if ! pgrep ahe_mover; then
+if ! pgrep age_mover; then
   echo "Cleaning lock and stop files"
   rm "/var/run/mover.pid"
   rm "/var/run/moversoft.stop"
