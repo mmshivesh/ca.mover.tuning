@@ -29,7 +29,9 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-- 2024-08-07
+###2024.08.07.0846
+    - Fix bug introduced by "Allow operation without array if multiple pools" preventing mover to run if less than 2 pools installed.
+    - 2024-08-07
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)) Unraid 7.0.0.beta2 may be required for this to work (6.x gui might not allow to have pool as Primary and Secondary)
     - [Add cleanup empty folder function](https://github.com/R3yn4ld/ca.mover.tuning/tree/Add-cleanup-empty-folders) ([R3yn4ld](https://github.com/R3yn4ld)): Will delete empty folder if file have been moved.
 

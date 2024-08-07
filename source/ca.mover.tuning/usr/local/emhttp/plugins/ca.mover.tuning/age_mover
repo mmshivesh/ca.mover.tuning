@@ -1034,6 +1034,7 @@ start() {
     if [ -f $UNRAIDCFGFILE ]; then
         if ! grep -qs 'shareCacheEnabled="yes"' $UNRAIDCFGFILE && [ $( ls /boot/config/pools/*.cfg | wc -l) -lt 2 ]; then
             mvlogger "Fatal error: cache not enabled and less than 2 pools set up."
+            rm $SOFTSTOPFILE
             exit 2
         fi
         if grep -qs 'shareMoverLogging="yes"' $UNRAIDCFGFILE; then
@@ -1041,6 +1042,7 @@ start() {
         fi
     else 
         mvlogger "Fatal error: $UNRAIDCFGFILE does not exist, check this."
+        rm $SOFTSTOPFILE
         exit 3
     fi
     if [ -f $MOVERTUNINGCFGFILE ]; then
@@ -1049,16 +1051,19 @@ start() {
         getMoverSettings $MOVERTUNINGCFGFILE
     else
         mvlogger "Fatal error: $MOVERTUNINGCFGFILE does not exist, check this."
+        rm $SOFTSTOPFILE
         exit 4
     fi
 
     # Only start if cache enabled and present
     if ! grep -qs 'shareCacheEnabled="yes"' $UNRAIDCFGFILE; then
         mvlogger "Fatal error: cache not enabled"
+        rm $SOFTSTOPFILE
         exit 5
     fi
     if ! mountpoint -q /mnt/user0; then
         mvlogger "Fatal error: cache not present, or only cache present"
+        rm $SOFTSTOPFILE
         exit 6
     fi
 
