@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.08.07.0858">
-<!ENTITY md5       "fa12e4fc85349211e27209e066842c57">
+<!ENTITY version   "2024.08.10.1532">
+<!ENTITY md5       "b6fd603177b520ed21854d35e1d8524b">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -14,18 +14,17 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###Next version:
-    - Better filtering with ctime=no
-    - Improved Synchronization:
-      - Improve synchronization by looking for files on cache first
-      - Do not count synchronized files twice (freeing/priming target were half achieved)
-      - Add check for primary storage not existing (dust config files)
-      - Optimize Filtering File and Decision loops regarding Rebalance and Synchronize
-    - Moved test mode on top of Mover Tuning Page ([R3yn4ld](https://github.com/R3yn4ld))
+###2024.08.10:
+    - Better filtering with ctime=no [R3yn4ld]
+    - Improved Synchronization [R3yn4ld]:
+        - Improve synchronization by looking for files on cache first
+        - Do not count synchronized files twice (freeing/priming target were half achieved)
+        - Optimize Filtering File and Decision loops regarding Rebalance and Synchronize
+    - Moved test mode on top of Mover Tuning Page [R3yn4ld]
+    - Add check for primary storage not existing (dust config files) [R3yn4ld]
 
-###2024.08.07.0858
+###2024.08.07
 - Fix bug introduced by "Allow operation without array if multiple pools" preventing mover to run if less than 2 pools installed.
-2024.08.07
 - Allow operation without array if multiple pools [R3yn4ld]. Unraid 7.0.0.beta2 may be required for this to work (6.x gui might not allow to have pool as Primary and Secondary)
 - Add cleanup empty folder function[R3yn4ld]
 
