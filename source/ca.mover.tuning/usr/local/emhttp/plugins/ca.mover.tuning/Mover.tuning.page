@@ -98,6 +98,14 @@ Disable Mover running on a schedule:
 
 > This will prevent mover from running at the schedule set in Mover Settings.  You will only be able to run mover by manually invoking it.
 
+Test Mode (dry run):
+: <select name='testmode' size='1' class='narrow'>
+<?=mk_option($cfg['testmode'],"no",'No')?>
+<?=mk_option($cfg['testmode'],"yes","Yes")?>
+</select>
+
+> Test Mode will not run mover but will output the custom find command results to /tmp/ca.mover.tuning/. Caution - If you have "Move Now button follows plug-in filters" set to no, original Mover will still run.  
+
 Only move if above this threshold of used Primary (cache) space:
 : <select name="movingThreshold" size="1" class='narrow'>
 <?for ($t=0;$t<100;$t+=5):?>
@@ -304,14 +312,6 @@ Log Mover Tuning plugin actions
 </select>
 
 > Enables or disables logging from this plugin. Logs are displayed in syslog and stored at /tmp/ca.mover.tuning
-
-Test Mode (dry run):
-: <select name='testmode' size='1' class='narrow'>
-<?=mk_option($cfg['testmode'],"no",'No')?>
-<?=mk_option($cfg['testmode'],"yes","Yes")?>
-</select>
-
-> Test Mode will not run mover but will output the custom find command results to /tmp/ca.mover.tuning/. Caution - If you have "Move Now button follows plug-in filters" set to no, original Mover will still run.  
 
 Show advanced options:
 : <select name='advancedOptions' size='1' class='narrow' onchange="updateScreenMoverAdvancedOptions(this.value, 'slow')">

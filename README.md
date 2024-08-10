@@ -29,7 +29,15 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-###2024.08.07.0858
+- Next version:
+    - Moved test mode on top of Mover Tuning Page ([R3yn4ld](https://github.com/R3yn4ld))
+    - [Improved Synchronization](([R3yn4ld](https://github.com/R3yn4ld))) ([R3yn4ld](https://github.com/R3yn4ld)):
+        - Improve synchronization by looking for files on cache first
+        - Do not count synchronized files twice (freeing/priming target were half achieved)
+        - Add check for primary storage not existing (dust config files)
+        - Optimize Filtering File and Decision loops regarding Rebalance and Synchronize
+
+- 2024.08.07.0858
     - Fix bug introduced by "Allow operation without array if multiple pools" preventing mover to run if less than 2 pools installed.
     - 2024-08-07
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)) Unraid 7.0.0.beta2 may be required for this to work (6.x gui might not allow to have pool as Primary and Secondary)
