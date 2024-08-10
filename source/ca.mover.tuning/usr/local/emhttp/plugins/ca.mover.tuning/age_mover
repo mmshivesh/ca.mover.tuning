@@ -219,12 +219,12 @@ getMoverSettings() {
     if [ -z $(cfg ctime)  ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No CTIME argument provided, defaulting to no"
-            CTIMEA="no"
+            CTIME="no"
             echo 'ctime="no"' >> $config_file
         fi
     else
-        CTIMEA=$(cfg ctime)
-        [ $CTIMEA = "yes" ] && mvlogger "CTIME: $CTIMEA"
+        CTIME=$(cfg ctime)
+        [ $CTIME = "yes" ] && mvlogger "CTIME: $CTIME"
     fi
 
     if [ -z $(cfg enableTurbo) ]; then
@@ -598,7 +598,7 @@ createFilteredFilelist (){
             mvlogger "Adding Age"
             RAGE=$((AGE - 1))
             # Use Creation time or modification time according to settings
-            if [ "$CTIMEA" == "yes" ]; then
+            if [ "$CTIME" == "yes" ]; then
                 mvlogger "Age (creation time) ${AGE}"
                 FINDSTR+=" -ctime +$RAGE"
             else
@@ -635,11 +635,12 @@ createFilteredFilelist (){
         else
             FINDSTR+=" '"
         fi
-        if [ "$CTIMEA" == "yes" ]; then
-            FINDSTR+="{printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME, SHARENAME, SHAREUSECACHE, \$1, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
+        if [ $CTIME == "yes" ]; then
+            FINDSTR+="{filepath = \$6; cmd=\"stat -c%W \" filepath; cmd | getline result; close(cmd); sub(/\\n\$/, \"\", result); \$1 = result;"  
         else
-            FINDSTR+="{cmd=\"stat -c%Y \\\"\"\$6\"\\\"\"; cmd | getline result; close(cmd); sub(/\\n\$/, \"\", result); printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME,  SHARENAME, SHAREUSECACHE, result, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
+            FINDSTR+="{"
         fi
+        FINDSTR+="printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME, SHARENAME, SHAREUSECACHE, \$1, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
 
         #Add additional commands
         #Add Skipfilelist to find string
@@ -667,7 +668,6 @@ createFilteredFilelist (){
         fi
 
         if [ -d "$SHAREPATH" ] || [ "$SHAREUSECACHE" = "prefer" ] || [ $REBALANCESHARES = "yes" ] ; then
-            #mvlogger "FINDSTR is: $FINDSTR"
             mvlogger "Filtering $SHARENAME files... (can take a moment)"
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
