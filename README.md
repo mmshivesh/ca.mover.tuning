@@ -32,7 +32,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 - Next version:
     - [Better filtering with ctime=no](https://github.com/R3yn4ld/ca.mover.tuning/tree/Better-method-for-filtering-with-ctime-%3Dno) ([R3yn4ld](https://github.com/R3yn4ld))
     - [Improved Synchronization](https://github.com/R3yn4ld/ca.mover.tuning/tree/Improve-synchronizing-from-secondary-to-primary) ([R3yn4ld](https://github.com/R3yn4ld)):
-        - Moved test mode on top of Mover Tuning Page ([R3yn4ld](https://github.com/R3yn4ld))
+        - Moved test mode on top of Mover Tuning Page
         - Improve synchronization by looking for files on cache first
         - Do not count synchronized files twice (freeing/priming target were half achieved)
         - Add check for primary storage not existing (dust config files)
