@@ -34,7 +34,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)): Fixed fatal error bug
     - Fixed error message about mover.pid and softstop file when installing the plugin or booting Unraid
 
-- 2024.08.10:
+- 2024.08.10
     - [Better filtering with ctime=no](https://github.com/R3yn4ld/ca.mover.tuning/tree/Better-method-for-filtering-with-ctime-%3Dno) ([R3yn4ld](https://github.com/R3yn4ld))
     - [Improved Synchronization](https://github.com/R3yn4ld/ca.mover.tuning/tree/Improve-synchronizing-from-secondary-to-primary) ([R3yn4ld](https://github.com/R3yn4ld)):
         - Improve synchronization by looking for files on cache first
@@ -43,7 +43,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
     - Moved test mode on top of Mover Tuning Page
     - Add check for primary storage not existing (dust config files)
 
-- 2024.08.07.0858
+- 2024.08.07
     - Fix bug introduced by "Allow operation without array if multiple pools" preventing mover to run if less than 2 pools installed.
     - 2024-08-07
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)) Unraid 7.0.0.beta2 may be required for this to work (6.x gui might not allow to have pool as Primary and Secondary)
