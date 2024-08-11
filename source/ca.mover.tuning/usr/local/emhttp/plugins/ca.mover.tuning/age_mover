@@ -668,7 +668,7 @@ createFilteredFilelist (){
         fi
 
         if [ -d "$SHAREPATH" ] || [ "$SHAREUSECACHE" = "prefer" ] || [ $REBALANCESHARES = "yes" ] ; then
-            mvlogger "Filtering $SHARENAME files... (can take a moment)"
+            [ $CTIME == "yes" ] && mvlogger "Filtering $SHARENAME files... (can take a moment)"
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
         fi
@@ -1150,7 +1150,7 @@ start() {
     #Write the final status just for sure
     moverStatusWrite
 
-    echo "Cleaning lock and stop files"
+    mvlogger "Cleaning lock and stop files"
     for file in $PIDFILE $SOFTSTOPFILE; do
         [[ -e "$file" ]] && rm -f "$file"
     done
