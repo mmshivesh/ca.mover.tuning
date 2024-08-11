@@ -378,6 +378,35 @@ getMoverSettings() {
         TESTMODE=$(cfg testmode)
         [ $TESTMODE = "yes" ] && mvlogger "Test Mode: $TESTMODE"
     fi
+
+    if [ -z $(cfg installBc) ]; then
+        if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+            mvlogger "No install bc argument provided, defaulting to no"
+            echo 'installBc="no"' >> $config_file
+            $INSTALLBC = "no"
+        fi
+    else
+        INSTALLBC=$(cfg installBc)
+        mvlogger "Install bc: $INSTALLBC"
+        # Print info about bc if not installed
+        if ! command -v bc >/dev/null;then
+            if [ $INSTALLBC = "yes" ] ;then
+                mvlogger "Installing bc"
+                mkdir -p /boot/extra
+                wget -qO /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz https://github.com/UnRAIDES/unRAID-NerdTools/raw/main/packages/pkgs/bc-1.07.1-x86_64-5.txz
+                upgradepkg --install-new /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
+            else
+                mvlogger "Info: you may optionally set "Install bc" option to yes to have more precise size value" 
+            fi
+        else
+            if [ $INSTALLBC = "no" ] && [ -e /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz ];then
+                mvlogger "Removing bc"
+                removepkg bc-1.07.1-x86_64-5_age_mover.txz
+                rm -f /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
+            fi
+        fi
+    fi
+
 }
 
 resetRunOnceMoverSettings() {
@@ -410,9 +439,6 @@ createFilteredFilelist (){
 
     # create a file containing the list off all shareUseCache yes or prefer whith this format:
     echo "PRIMARYSTORAGENAME|SECONDARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|PRIMARYSIZETRESH|FILESIZE|SPARSENESS|NBLINKS|INODE|FILEPATH" > $FILTERED_FILELIST
-
-    # Print info about bc if not installed
-    $(command -v bc >/dev/null) || mvlogger "Info: you may optionally install 'bc' from 'NerdTools' to have more precise size value" 
 
     for SHARECFG in /boot/config/shares/*.cfg; do
         if [ -e $SOFTSTOPFILE ]; then
@@ -995,7 +1021,6 @@ processTheMoves () {
             RSYNC_CMD="rsync --archive --xattrs --relative --hard-links"
 
             if [ $TESTMODE = "yes" ]; then
-                mvlogger "rsync will run in --dry-run mode"
                 RSYNC_CMD+=" --dry-run"
             fi
 
@@ -1044,7 +1069,7 @@ processTheMoves () {
     done
 
 
-    if grep -q "|sync from" $MOVER_ACTIONLIST ; then
+    if [ $TESTMODE != "yes" ] && grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
         mvlogger "Set last sync date in config file: $EPOCH = $NOW"
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then

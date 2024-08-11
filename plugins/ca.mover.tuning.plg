@@ -3,6 +3,7 @@
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
 <!ENTITY version   "2024.08.11.1552">
+<!ENTITY upgrade   "minor">
 <!ENTITY md5       "5ba624cadb3c1aed44a5751611424ad7">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
@@ -14,6 +15,10 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
+###Next version:
+- Add bc (un)install option
+- Force test mode only on major upgrade, keep on minor.
+
 ###2024.08.11
 - Allow-operation-without-array-if-multiple-pools R3yn4ld]: Fixed fatal error bug
 - Fixed error message about mover.pid and softstop file when installing the plugin or booting Unraid
@@ -227,11 +232,15 @@ if [[ ! -f "$config_file" ]]; then
   echo "version=&version;" >> "$config_file"
 else
   echo "Updating config file"
-  echo "- Forcing test mode"
-  if grep -q "testmode" "$config_file"; then
-    sed -i "s/testmode=.*$/testmode=\"yes\"/" "$config_file"
+  if [ &upgrade; = "major" ]; then
+    echo "- Major upgrade, forcing test mode"
+    if grep -q "testmode" "$config_file"; then
+      sed -i "s/testmode=.*$/testmode=\"yes\"/" "$config_file"
+    else
+      echo 'testmode="yes"' >> "$config_file"
+    fi
   else
-    echo 'testmode="yes"' >> "$config_file"
+    echo "- Minor upgrade, not forcing test mode"
   fi
   echo "- Updating version number"
   if grep -q "version" "$config_file"; then
