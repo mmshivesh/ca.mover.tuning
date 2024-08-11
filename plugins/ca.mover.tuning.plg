@@ -201,7 +201,7 @@ cp /usr/local/emhttp/plugins/&name;/mover /usr/local/sbin/mover
 if ! pgrep age_mover; then
   echo "Cleaning lock and stop files"
   for file in mover.pid moversoft.stop; do
-    [[ -e "/var/run/$file" ]] && rm -f "/var/run/$file"
+    if [[ -e "/var/run/$file" ]]; then rm -f "/var/run/$file"; fi
   done
 fi
 
