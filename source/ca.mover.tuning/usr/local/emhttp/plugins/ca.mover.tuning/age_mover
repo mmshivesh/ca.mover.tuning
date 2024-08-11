@@ -1066,11 +1066,9 @@ start() {
     mvlogger "$(titleLine "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)" '*')"
     #mvlogger "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)"
     # Do not start if already running
-    if [ -f $PIDFILE ]; then
-        if ps h $(cat $PIDFILE) | grep mover; then
+    if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) | grep mover; then
             mvlogger "mover: already running"
             exit 1
-        fi
     fi
     echo $$ > $PIDFILE
 
@@ -1082,18 +1080,13 @@ start() {
 
     # Only start if config OK
     if [ -f $UNRAIDCFGFILE ]; then
-        if ! grep -qs 'shareCacheEnabled="yes"' $UNRAIDCFGFILE && [ $( ls /boot/config/pools/*.cfg | wc -l) -lt 2 ]; then
-            mvlogger "Fatal error: cache not enabled and less than 2 pools set up."
-            rm $SOFTSTOPFILE
-            exit 2
-        fi
         if grep -qs 'shareMoverLogging="yes"' $UNRAIDCFGFILE; then
             mvlogger "Log Level: $LOGLEVEL"
         fi
     else 
         mvlogger "Fatal error: $UNRAIDCFGFILE does not exist, check this."
         rm $SOFTSTOPFILE
-        exit 3
+        exit 2
     fi
     if [ -f $MOVERTUNINGCFGFILE ]; then
         #Get Mover Tuning Settings
@@ -1102,19 +1095,19 @@ start() {
     else
         mvlogger "Fatal error: $MOVERTUNINGCFGFILE does not exist, check this."
         rm $SOFTSTOPFILE
-        exit 4
+        exit 3
     fi
 
     # Only start if cache enabled and present
-    if ! grep -qs 'shareCacheEnabled="yes"' $UNRAIDCFGFILE; then
-        mvlogger "Fatal error: cache not enabled"
+    if ! grep -qs 'shareCacheEnabled="yes"' $UNRAIDCFGFILE && [ $( ls /boot/config/pools/*.cfg | wc -l) -lt 2 ]; then
+        mvlogger "Fatal error: cache not enabled and less than 2 pools set up."
         rm $SOFTSTOPFILE
-        exit 5
+        exit 4
     fi
     if ! mountpoint -q /mnt/user0 && [ $( ls /boot/config/pools/*.cfg | wc -l) -lt 2 ]; then
         mvlogger "Fatal error: cache not present, or only cache present, and less than 2 pools set up."
         rm $SOFTSTOPFILE
-        exit 6
+        exit 5
     fi
 
     #Delete helper files over 5 days old.
