@@ -1111,8 +1111,8 @@ start() {
         rm $SOFTSTOPFILE
         exit 5
     fi
-    if ! mountpoint -q /mnt/user0; then
-        mvlogger "Fatal error: cache not present, or only cache present"
+    if ! mountpoint -q /mnt/user0 && [ $( ls /boot/config/pools/*.cfg | wc -l) -lt 2 ]; then
+        mvlogger "Fatal error: cache not present, or only cache present, and less than 2 pools set up."
         rm $SOFTSTOPFILE
         exit 6
     fi
@@ -1150,8 +1150,10 @@ start() {
     #Write the final status just for sure
     moverStatusWrite
 
-    rm -f $PIDFILE
-    rm -f $SOFTSTOPFILE
+    echo "Cleaning lock and stop files"
+    for file in $PIDFILE $SOFTSTOPFILE; do
+        [[ -e "$file" ]] && rm -f "$file"
+    done
  
     #Run mover after script if specified.
     if [ ! -z "$AFTERSCRIPT" ]; then
