@@ -178,7 +178,17 @@ elif [[ -e /usr/local/bin/mover ]]; then
 fi
 echo "Installing tuned mover script"
 cp /usr/local/emhttp/plugins/&name;/mover /usr/local/sbin/mover
+<<<<<<< Updated upstream
 
+=======
+# Cleaning eventual leftovers
+if ! pgrep age_mover; then
+  echo "Cleaning lock and stop files"
+  for file in mover.pid moversoft.stop; do
+    [[ -e "/var/run/$file" ]] && rm -f "/var/run/$file"
+  done
+fi
+>>>>>>> Stashed changes
 echo "Fixing permissions"
 chmod +x /usr/local/sbin/mover
 chmod +x /usr/local/emhttp/plugins/ca.mover.tuning/*.php
