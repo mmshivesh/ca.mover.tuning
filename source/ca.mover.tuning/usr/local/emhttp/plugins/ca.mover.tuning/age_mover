@@ -383,24 +383,24 @@ getMoverSettings() {
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No install bc argument provided, defaulting to no"
             echo 'installBc="no"' >> $config_file
-            $INSTALLBC = "no"
+            INSTALLBC = "no"
         fi
     else
         INSTALLBC=$(cfg installBc)
-        mvlogger "Install bc: $INSTALLBC"
+        [ $INSTALLBC = "yes" ] && mvlogger "Install bc: $INSTALLBC"
         # Print info about bc if not installed
         if ! command -v bc >/dev/null;then
             if [ $INSTALLBC = "yes" ] ;then
-                mvlogger "Installing bc"
+                mvlogger "bc not detected, installing..."
                 mkdir -p /boot/extra
                 wget -qO /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz https://github.com/UnRAIDES/unRAID-NerdTools/raw/main/packages/pkgs/bc-1.07.1-x86_64-5.txz
                 upgradepkg --install-new /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
             else
-                mvlogger "Info: you may optionally set "Install bc" option to yes to have more precise size value" 
+                if ! command -v bc >/dev/null; then mvlogger "Info: you may optionally set "Install bc" option to yes to have more precise size value"; fi
             fi
         else
             if [ $INSTALLBC = "no" ] && [ -e /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz ];then
-                mvlogger "Removing bc"
+                mvlogger "bc detected and installed by this plugin. Removing bc"
                 removepkg bc-1.07.1-x86_64-5_age_mover.txz
                 rm -f /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
             fi
@@ -513,10 +513,6 @@ createFilteredFilelist (){
         mvlogger "Secondary storage: $SECONDARYSTORAGENAME"
 
 
-        # Determine sharepath
-        SHAREPATH="/mnt/$PRIMARYSTORAGENAME/$SHARENAME"
-        mvlogger "Share Information: Name: $SHARENAME - Path: $SHAREPATH"
-
         # Count number of storage pools on system for this share:
         if [ $PRIMARYSTORAGENAME = "user0" ] || [ $SECONDARYSTORAGENAME = "user0" ] ; then
             UNATTENDEDSTORAGE=$(find /mnt -type d -name "$SHARENAME" \
@@ -532,25 +528,36 @@ createFilteredFilelist (){
                             -not -path "/mnt/user*" \
                             -maxdepth 2 | cut -d'/' -f3)
         fi
-        # Give information according to cache mode and thresholds
+
+        # Determine sharepath
+        SHAREPATH="/mnt/$PRIMARYSTORAGENAME/$SHARENAME"
+
         if [ ! -d "$SHAREPATH" ]; then  # && [ $SHAREUSECACHE != "no" ]
             # Do not process this pool if path does not exist
             mvlogger "$SHAREPATH does not exist. Is the share still used? Consider removing $SHARECFG if not."
             mvlogger "=> Skipping"
             continue  # Move to the next iteration of the loop
-        elif [ "$SHAREUSECACHE" = "prefer" ]; then
+        fi
+
+        if  [ $SHAREUSECACHE = "prefer" ] || ([ $REBALANCESHARES = "yes" ] && [ ! -z $UNATTENDEDSTORAGE ]); then
+            SHAREPATH="/mnt/*/$SHARENAME"
+        fi
+        mvlogger "Share Information: Name: $SHARENAME - Path: $SHAREPATH"
+
+        # Give information according to cache mode and thresholds
+        if [ "$SHAREUSECACHE" = "prefer" ]; then
             mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% ($(convert_bytes $MOVESIZETHRESH)) ; Freeing threshold: $FREEINGPCTLIMIT% ($(convert_bytes $PRIMARYSIZETHRESH))"
             if [ $REBALANCESHARES = "yes" ] && [ ! -z $UNATTENDEDSTORAGE ]; then
                 mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Rebalance shares option is selected"
                 mvlogger "=> Files detected in $UNATTENDEDSTORAGE instead of $PRIMARYSTORAGENAME or $SECONDARYSTORAGENAME. They will be rebalanced back to these."
             elif [ $POOLPCTUSED -lt $FREEINGPCTLIMIT ]; then
-                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is below freeing threshold percentage: $POOLPCTUSED% < $FREEINGPCTLIMIT%."
+                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is below priming threshold percentage: $POOLPCTUSED% < $FREEINGPCTLIMIT%."
                 mvlogger "=> Will smart move newest files from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME until threshold. Older files will be moved from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME."
             elif [ $POOLPCTUSED -gt $MOVINGPCTTHRESHOLD ]; then
                 mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is above moving threshold percentage: $POOLPCTUSED% >= $MOVINGPCTTHRESHOLD%."
-                mvlogger "=> Will smart move newest files from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME until threshold. Older files will be moved from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME."
+                mvlogger "=> Will smart move newest files from $SECONDARYSTORAGENAME to $PRIMARYSTORAGENAME until freeing threshold. Older files will be moved from $PRIMARYSTORAGENAME to $SECONDARYSTORAGENAME."
             else
-                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is above freeing threshold percentage and below moving threshold percentage: $FREEINGPCTLIMIT% < $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
+                mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Pool is above freeing threshold percentage and below priming threshold percentage: $FREEINGPCTLIMIT% < $POOLPCTUSED% < $MOVINGPCTTHRESHOLD%."
                 mvlogger "=> Skipping"
                 continue
             fi
@@ -610,9 +617,8 @@ createFilteredFilelist (){
 
         #Base Find String
         # Alterate SHAREPATH on Cache=prefer or RebalanceShare=true
-        if [ "$SHAREUSECACHE" = "prefer" ] || [ $REBALANCESHARES = "yes" ] && [ ! -z $UNATTENDEDSTORAGE ]; then
+        if [ "$SHAREUSECACHE" = "prefer" ] || ( [ $REBALANCESHARES = "yes" ] && [ ! -z $UNATTENDEDSTORAGE ] ); then
             #"cache=prefer" pool, we replace path to list files in /mnt/user and process later
-            SHAREPATH="/mnt/*/$SHARENAME"
             FINDSTR="find $SHAREPATH ! -path \"/mnt/user*\" -type f -depth "
         else
             FINDSTR="find $SHAREPATH -type f -depth "
@@ -785,14 +791,14 @@ decideMoveActions () {
             # Update pool sum (use pool_sums[$1])
             pool_sums[$1] += $7
 
-            file_tested = "/mnt/" $1 "/" file_path
-            # Priorise cache
-            getline line < file_tested
-            close(file_tested)
-            if (NR > 0) {
-                storage_pool = $1
-                storage_path = "/mnt/" $1
-            }
+#            file_tested = "/mnt/" $1 "/" file_path
+#            # Priorise cache
+#            getline line < file_tested
+#            close(file_tested)
+#            if (NR > 0) {
+#                storage_pool = $1
+#                storage_path = "/mnt/" $1
+#            }
 
             # Take decision
             if (storage_pool == $1 && duplicate == false) {
@@ -821,7 +827,7 @@ decideMoveActions () {
             } else {
                 if (storage_pool == "user" || ($2 == "user0" && storage_pool ~ "disk") && duplicate == false) {
                     # Make decision to move or keep:
-                    action = ($4 == "only" || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
+                    action = (($4 == "only" && REBALANCESHARES == "yes") || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
                     if (action == "keep on secondary") {
                         source = storage_path

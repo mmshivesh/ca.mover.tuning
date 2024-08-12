@@ -32,6 +32,7 @@ If an error occurs in copying a file, the partial file, if present, is deleted a
 - 2024.08.12
     - [Add bc (un)install option](https://github.com/R3yn4ld/ca.mover.tuning/tree/bc-nerdtools-dependancy) ([R3yn4ld](https://github.com/R3yn4ld))
     - Force test mode only on major upgrade, keep on minor ([R3yn4ld](https://github.com/R3yn4ld))
+    - [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) ([R3yn4ld](https://github.com/R3yn4ld)))
 
 - 2024.08.11
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)): Fixed fatal error bug
