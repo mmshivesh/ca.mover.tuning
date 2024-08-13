@@ -716,8 +716,57 @@ createFilteredFilelist (){
         fi
     done
 
-    # Sort the file list by PRIMARYSTORAGENAME, shareusecache, creation/modification time, and inode
+    # Sort the file list by PRIMARYSTORAGENAME, shareusecache, creation/modification time, and inode, keeping /mnt/disk at the end
     sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
+    # Need to remove duplicate (cache and array) 
+    if grep -q "/mnt/disk" $FILTERED_FILELIST; then
+        mvlogger "Optimizing Filtered Filelist"
+        tempfile1=$(mktemp)
+        tempfile2=$(mktemp)
+        grep -v "/mnt/disk" $FILTERED_FILELIST > "$tempfile1"
+        grep "/mnt/disk" $FILTERED_FILELIST > "$tempfile2"
+        cat "$tempfile1" "$tempfile2" | awk -F"|" '
+            function is_duplicate(key) {
+                if (prev[key]) {
+                    return true
+                } else {
+                    prev[key] = 1
+                    return false
+                }
+            }
+            function extract_path(filepath) {
+                # Optimized path extraction using sub
+                sub(/^\/[^\/]+\/[^\/]+\/[^\/]+\//, "", filepath)
+                return filepath
+            }
+            BEGIN {
+                FS = OFS = "|"
+
+                if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
+                    exit 1
+                }
+                # Initialize previous inode and dictionary for pool sums
+                previous_inode = 0
+
+                # Print new header
+                printf "PRIMARYSTORAGENAME|SECONDARYSTORAGENAME|SHARENAME|SHAREUSECACHE|MODIFICATIONTIME|PRIMARYSIZETRESH|FILESIZE|SPARSENESS|NBLINKS|INODE|FILEPATH\n"
+            }
+
+            NR > 1 { # Main loop, skip header line
+                if (system("[ -e \"" SOFTSTOPFILE "\" ]") == 0) {
+                    exit 1
+                }
+                file_path = extract_path($11)
+
+                # Handle duplicates
+                key = $3 "|" $5 "|" $7 "|" file_path
+                if (! is_duplicate(key)) {
+                    printf "%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                }
+            }' > "$FILTERED_FILELIST"
+        sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
+        rm $tempfile1 $tempfile2
+    fi
 }
 
 decideMoveActions () {
@@ -735,6 +784,46 @@ decideMoveActions () {
     # $6:PRIMARYSIZETRESH $7:FILESIZE $8:SPARSENESS $9:NBLINKS $10:INODE $11:FILEPATH
     
     awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v REBALANCESHARES=$REBALANCESHARES -v RESYNCHRONIZECACHE=$RESYNCHRONIZECACHE '
+        function is_duplicate(key, file_size) {
+            if (prev[key]) {
+                file_size = $7
+                $7 = 1
+                return true
+            } else {
+                prev[key] = 1
+                return false
+            }
+        }
+
+        function is_hardlink(inode, key) {
+            if ($9 > 1) {
+                key = $1 "|" $2 "|" $3 "|" $10
+                if (prev[key]) {
+                    file_size = 0
+                    $7 = 0
+                    return true
+                } else {
+                    prev[key] = 1
+                    return false
+                }
+            }
+            return false
+        }
+
+        function extract_path(filepath) {
+            split(filepath, path_parts, "/")
+            storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
+            storage_pool = path_parts[3]
+            file_path = ""
+            for (i = 4; i <= length(path_parts); i++) {
+                file_path = file_path path_parts[i]
+                if (i < length(path_parts)) {
+                    file_path = file_path "/"
+                }
+            }
+            return storage_path "|" storage_pool "|" file_path
+        }
+
         BEGIN {
             FS = OFS = "|"
 
@@ -754,51 +843,21 @@ decideMoveActions () {
             }
 
             # Extract the part after the first three slashes (/mnt/pool/) in the ninth field (filepath)
-            split($11, path_parts, "/")
-            storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
-            storage_pool = path_parts[3]
-            file_path = ""
-            for (i = 4; i <= length(path_parts); i++) {
-                file_path = file_path path_parts[i]
-                if (i < length(path_parts)) {
-                    file_path = file_path "/"
-                }
-            }
+            extracted_path = extract_path($11)
+            split(extracted_path, path_parts, "|")
+            storage_path = path_parts[1]
+            storage_pool = path_parts[2]
+            file_path = path_parts[3]
 
-            # Handle duplicates (already synced files)
-            file_size=$7
+            # Handle duplicates
             key = $3 "|" $5 "|" $7 "|" file_path
-            if (prev[key]) {
-                file_size = $7
-                $7 = 1 # Set filesize to 1 for duplicates. 
-                duplicate = true
-            } else {
-                prev[key] = 1
-                duplicate = false
-            }
+            duplicate = is_duplicate(key, file_size)
 
-            # Handle hardlink
-            if ($9 > 1) {
-                key = $1 "|" $2 "|" $3 "|" $10
-                if (prev[key]) {
-                    file_size = 0
-                    $7 = 0 # Set filesize to 0 for hardlinks
-                } else {
-                    prev[key] = 1
-                }
-            }
+            # Handle hardlinks
+            hardlink = is_hardlink($9, key)
 
             # Update pool sum (use pool_sums[$1])
             pool_sums[$1] += $7
-
-#            file_tested = "/mnt/" $1 "/" file_path
-#            # Priorise cache
-#            getline line < file_tested
-#            close(file_tested)
-#            if (NR > 0) {
-#                storage_pool = $1
-#                storage_path = "/mnt/" $1
-#            }
 
             # Take decision
             if (storage_pool == $1 && duplicate == false) {
@@ -825,7 +884,7 @@ decideMoveActions () {
                     pool_stats[$1]["total_size_from_primary"] += file_size
                 }
             } else {
-                if (storage_pool == "user" || ($2 == "user0" && storage_pool ~ "disk") && duplicate == false) {
+                if ((storage_pool == "user" || ($2 == "user0" && storage_pool ~ "disk")) && duplicate == false) {
                     # Make decision to move or keep:
                     action = (($4 == "only" && REBALANCESHARES == "yes") || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
