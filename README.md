@@ -29,7 +29,7 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-- 2024.08.12
+- 2024.08.15
     - Even [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) (hopefully) ([R3yn4ld](https://github.com/R3yn4ld))
         - Rewriten Ignore filelist from file and filetypes filtering functions (major)
         - Improve calculating size of filtered files and filetypes
