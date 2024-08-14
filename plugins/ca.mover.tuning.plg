@@ -2,9 +2,9 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.08.12.0852">
-<!ENTITY upgrade   "minor">
-<!ENTITY md5       "ec5dcaa5fe7264b678df08ba9abddaca">
+<!ENTITY version   "2024.08.15.0025">
+<!ENTITY upgrade   "major">
+<!ENTITY md5       "d7e84c9b5ea500fc7dd7d2a3de6696ac">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -15,13 +15,15 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###Next version
-- Even better cache priming [R3yn4ld]
+###2024.08.15
+- Even better cache priming (hopefully) [R3yn4ld]
   - Rewriten Ignore filelist from file and filetypes filtering functions (major)
   - Improve calculating size of filtered files and filetypes
   - Update calculation from basic/bc to numfmt. Removed bc option 
   - Added verification for not breaking hardlinks when an hardlinked file is filtered
-- Added testmode to cleaning empty folder, and a min depth of 2.
+- Added testmode to cleaning empty folder function, and a min depth of 2.
+- Fixed ctime bug
+
 ###2024.08.12
 - Add bc (un)install option [R3yn4ld]
 - Force test mode only on major upgrade, keep on minor. [R3yn4ld]
