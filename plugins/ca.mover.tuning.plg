@@ -15,23 +15,31 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
-###2024.08.12.0852
+###Next version
+- Even better cache priming [R3yn4ld]
+  - Rewriten Ignore filelist from file and filetypes filtering functions (major)
+  - Improve calculating size of filtered files and filetypes
+  - Update calculation from basic/bc to numfmt. Removed bc option 
+  - Added verification for not breaking hardlinks when an hardlinked file is filtered
+- Added testmode to cleaning empty folder, and a min depth of 2.
+###2024.08.12
+- Add bc (un)install option [R3yn4ld]
+- Force test mode only on major upgrade, keep on minor. [R3yn4ld]
 - Repair/optimize cache priming.
 - Adding check to bc (un)installation routine
-2024.08.12.0023
 - Add bc (un)install option
 - Force test mode only on major upgrade, keep on minor.
 
 ###2024.08.11
-- Allow-operation-without-array-if-multiple-pools R3yn4ld]: Fixed fatal error bug
-- Fixed error message about mover.pid and softstop file when installing the plugin or booting Unraid
+- Allow-operation-without-array-if-multiple-pools [R3yn4ld]: Fixed fatal error bug
+- Fixed error message about mover.pid and softstop file when installing the plugin or booting Unraid [R3yn4ld]
 
 ###2024.08.10
 - Better filtering with ctime=no [R3yn4ld]
 - Improved Synchronization [R3yn4ld]:
-    - Improve synchronization by looking for files on cache first
-    - Do not count synchronized files twice (freeing/priming target were half achieved)
-    - Optimize Filtering File and Decision loops regarding Rebalance and Synchronize
+  - Improve synchronization by looking for files on cache first
+  - Do not count synchronized files twice (freeing/priming target were half achieved)
+  - Optimize Filtering File and Decision loops regarding Rebalance and Synchronize
 - Moved test mode on top of Mover Tuning Page [R3yn4ld]
 - Add check for primary storage not existing (dust config files) [R3yn4ld]
 

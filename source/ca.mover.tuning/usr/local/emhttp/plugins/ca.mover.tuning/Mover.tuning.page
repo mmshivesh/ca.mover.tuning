@@ -313,15 +313,6 @@ Log Mover Tuning plugin actions
 
 > Enables or disables logging from this plugin. Logs are displayed in syslog and stored at /tmp/ca.mover.tuning
 
-Install bc if not on system
-: <select name='installBc' size='1' class='narrow'>
-<?=mk_option($cfg['installBc'],"no",'No')?>
-<?=mk_option($cfg['installBc'],"yes","Yes")?>
-</select>
-
-> Install bc calculation program for better statistics
-
-
 Show advanced options:
 : <select name='advancedOptions' size='1' class='narrow' onchange="updateScreenMoverAdvancedOptions(this.value, 'slow')">
 <?=mk_option($cfg['advancedOptions'],"no","No")?>
