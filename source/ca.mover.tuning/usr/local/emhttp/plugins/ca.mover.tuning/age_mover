@@ -78,31 +78,14 @@ function titleLine() {
 }
 
 # Function to convert byte size to human-readable format
-function convert_bytes() {
-    local bytes="$1"
-    local suffixes=("B" "KiB" "MiB" "GiB" "TiB" "PiB" "EiB" "ZiB" "YiB")
-    local i=0
-
-    if (( bytes == 0 )); then
-        printf "%d %s\n" "$bytes" "${suffixes[i]}"
-        return 0
-    fi
-
-    if command -v bc >/dev/null; then
-        while (( $(bc <<< "$bytes >= 1024") )); do
-            bytes=$(bc <<< "scale=2; $bytes / 1024")
-            (( i++ ))
-        done
-        printf "%0.2f %s\n" "$bytes" "${suffixes[i]}"
-    else
-        while (( bytes >= 1024 )); do
-            (( bytes /= 1024 ))
-            (( i++ ))
-        done
-        printf "%d %s\n" "$bytes" "${suffixes[i]}"
-    fi
+function bytes_to_human() {
+  echo "$(numfmt $1 --to=iec-i)B"
 }
 
+
+function human_to_bytes() {
+  echo $(numfmt $1 --from=iec)
+}
 
 # Function for verbose output and logging
 mvlogger() {
@@ -156,7 +139,10 @@ getMoverSettings() {
 
     if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
         FREEINGPCTLIMIT=$(cfg freeingThreshold)
-        [ -z $FREEINGPCTLIMIT ] && FREEINGPCTLIMIT=$MOVINGPCTTHRESHOLD
+        if [ -z $FREEINGPCTLIMIT ]; then
+            FREEINGPCTLIMIT=$MOVINGPCTTHRESHOLD
+            echo "freeingThreshold=\"$FREEINGPCTLIMIT\"" >> $config_file
+        fi
         mvlogger "Using global freeing threshold: $FREEINGPCTLIMIT %"
     elif [ ! -z $(cfg freeingThreshold) ]; then
         FREEINGPCTLIMIT=$(cfg freeingThreshold) 
@@ -242,27 +228,13 @@ getMoverSettings() {
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No Skipfiles argument provided, defaulting to no"
             echo 'filelistf="no"' >> $config_file
-            SKIPFILESLIST=""
-            SKIPFOLDERSLIST=""
         fi
     else
         if [ $(cfg filelistf) = "yes" ]; then
-            SKIPFILESPATH=$(cfg filelistv)
-            SKIPFILESPATH=$(echo $SKIPFILESPATH | sed 's/ *$//g')
-            SKIPFILESLIST=$SKIPFILESPATH
-            SKIPFOLDERSLIST=""
-            while IFS= read -r path; do
-                path=${path%/}
-                if [ -d "$path" ]; then
-                    SKIPFOLDERSLIST+="$path/*"$'\n'
-                fi
-            done < <(cat "$SKIPFILESPATH"; echo)
-            SKIPFOLDERSLIST="${SKIPFOLDERSLIST%$'\n'}"
-            mvlogger "Skip file list path: $SKIPFILESLIST"
-            mvlogger "Skip folder list path: $SKIPFOLDERSLIST"
+            SKIPFILESLIST=$(cfg filelistv)
+            mvlogger "Skip file list: $SKIPFILESLIST"
         else
-            SKIPFILESLIST=""
-            SKIPFOLDERSLIST=""
+            [[ ! "$config_file" =~ shareOverrideConfig ]] && SKIPFILESLIST=""
         fi
     fi
 
@@ -276,10 +248,10 @@ getMoverSettings() {
         if [ $(cfg filetypesf) = "yes" ]; then
             ###echo "Skipfiletypes supplied"
             SKIPFILETYPES=$(cfg filetypesv)
-            SKIPFILETYPES=$(echo "$SKIPFILETYPES" | awk -F, '{for(i=1;i<=NF;i++) {gsub(/ /, "", $i); if ($i !~ /^\./) $i = "."$i; printf "%s%s", $i, (i<NF?",":"")}}')
+            SKIPFILETYPES=$(echo "$SKIPFILETYPES" | awk -F, '{for(i=1;i<=NF;i++) {gsub(/\.| /, "", $i); printf "%s%s", $i, (i<NF?" ":"")}}')
             mvlogger "Skip filetypes: $SKIPFILETYPES"
         else
-            SKIPFILETYPES=""
+            [[ ! "$config_file" =~ shareOverrideConfig ]] && SKIPFILETYPES=""
         fi
     fi
 
@@ -316,7 +288,7 @@ getMoverSettings() {
             SIZE=$(cfg sizeinM)
             [ $SIZE -gt 0 ] && mvlogger "Size supplied: $SIZE"
         else
-            SIZE=0
+            [[ ! "$config_file" =~ shareOverrideConfig ]] &&  SIZE=0
         fi
     fi
 
@@ -331,7 +303,7 @@ getMoverSettings() {
             SPARSENESS=$(cfg sparsnessv)
             [ $SPARSENESS - gt 0 ] && mvlogger "Sparness supplied: $SPARSENESS"
         else
-            SPARSENESS=0
+            [[ ! "$config_file" =~ shareOverrideConfig ]] && SPARSENESS=0
         fi
     fi
 
@@ -377,34 +349,6 @@ getMoverSettings() {
     else
         TESTMODE=$(cfg testmode)
         [ $TESTMODE = "yes" ] && mvlogger "Test Mode: $TESTMODE"
-    fi
-
-    if [ -z $(cfg installBc) ]; then
-        if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-            mvlogger "No install bc argument provided, defaulting to no"
-            echo 'installBc="no"' >> $config_file
-            INSTALLBC = "no"
-        fi
-    else
-        INSTALLBC=$(cfg installBc)
-        [ $INSTALLBC = "yes" ] && mvlogger "Install bc: $INSTALLBC"
-        # Print info about bc if not installed
-        if ! command -v bc >/dev/null;then
-            if [ $INSTALLBC = "yes" ] ;then
-                mvlogger "bc not detected, installing..."
-                mkdir -p /boot/extra
-                wget -qO /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz https://github.com/UnRAIDES/unRAID-NerdTools/raw/main/packages/pkgs/bc-1.07.1-x86_64-5.txz
-                upgradepkg --install-new /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
-            else
-                if ! command -v bc >/dev/null; then mvlogger "Info: you may optionally set "Install bc" option to yes to have more precise size value"; fi
-            fi
-        else
-            if [ $INSTALLBC = "no" ] && [ -e /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz ];then
-                mvlogger "bc detected and installed by this plugin. Removing bc"
-                removepkg bc-1.07.1-x86_64-5_age_mover.txz
-                rm -f /boot/extra/bc-1.07.1-x86_64-5_age_mover.txz
-            fi
-        fi
     fi
 
 }
@@ -509,7 +453,7 @@ createFilteredFilelist (){
         MOVESIZETHRESH=$(( $POOLSIZE * $MOVINGPCTTHRESHOLD / 100))
 
         # Print pool info:
-        mvlogger "Primary storage: $PRIMARYSTORAGENAME - size: $(convert_bytes $POOLSIZE) - used: $POOLPCTUSED % ($(convert_bytes $POOLBYTEUSED))"
+        mvlogger "Primary storage: $PRIMARYSTORAGENAME - size: $(bytes_to_human $POOLSIZE) - used: $POOLPCTUSED % ($(bytes_to_human $POOLBYTEUSED))"
         mvlogger "Secondary storage: $SECONDARYSTORAGENAME"
 
 
@@ -546,7 +490,7 @@ createFilteredFilelist (){
 
         # Give information according to cache mode and thresholds
         if [ "$SHAREUSECACHE" = "prefer" ]; then
-            mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% ($(convert_bytes $MOVESIZETHRESH)) ; Freeing threshold: $FREEINGPCTLIMIT% ($(convert_bytes $PRIMARYSIZETHRESH))"
+            mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% ($(bytes_to_human $MOVESIZETHRESH)) ; Freeing threshold: $FREEINGPCTLIMIT% ($(bytes_to_human $PRIMARYSIZETHRESH))"
             if [ $REBALANCESHARES = "yes" ] && [ ! -z $UNATTENDEDSTORAGE ]; then
                 mvlogger "Mover action: $SECONDARYSTORAGENAME->$PRIMARYSTORAGENAME (cache:prefer). Rebalance shares option is selected"
                 mvlogger "=> Files detected in $UNATTENDEDSTORAGE instead of $PRIMARYSTORAGENAME or $SECONDARYSTORAGENAME. They will be rebalanced back to these."
@@ -562,7 +506,7 @@ createFilteredFilelist (){
                 continue
             fi
         elif [ $SHAREUSECACHE = "yes" ]; then
-            mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% ($(convert_bytes $MOVESIZETHRESH)) ; Freeing threshold: $FREEINGPCTLIMIT% ($(convert_bytes $PRIMARYSIZETHRESH))"
+            mvlogger "Moving threshold: $MOVINGPCTTHRESHOLD% ($(bytes_to_human $MOVESIZETHRESH)) ; Freeing threshold: $FREEINGPCTLIMIT% ($(bytes_to_human $PRIMARYSIZETHRESH))"
             if [ $REBALANCESHARES = "yes" ]  && [ ! -z $UNATTENDEDSTORAGE ]; then
                 mvlogger "Mover action: $PRIMARYSTORAGENAME->$SECONDARYSTORAGENAME (cache:yes). Rebalance shares option is selected"
                 mvlogger "=> Files detected in $UNATTENDEDSTORAGE instead of $PRIMARYSTORAGENAME or $SECONDARYSTORAGENAME. They will be rebalanced to $SECONDARYSTORAGENAME."
@@ -592,10 +536,10 @@ createFilteredFilelist (){
                     CACHESHARERESERVEDSPACE=$(zfs list -Hpo used $PRIMARYSTORAGENAME/$SHARENAME )
                 else
                     mvlogger "Calculating share usage... (can take a moment)"
-                    CACHESHARERESERVEDSPACE=$(du -b -d0 $SHAREPATH | awk '{print $1}')
+                    CACHESHARERESERVEDSPACE=$(du -sh $SHAREPATH | awk '{print $1}' | human_to_bytes)
                 fi
-                echo "${PRIMARYSTORAGENAME}|${PRIMARYSTORAGENAME}|$SHARENAME|only|9999999999|$PRIMARYSIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|${SHAREPATH}" >>$FILTERED_FILELIST
-                mvlogger "$PRIMARYSTORAGENAME/$SHARENAME used: $(convert_bytes $CACHESHARERESERVEDSPACE)"
+                echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|only|9999999999|$PRIMARYSIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|${SHAREPATH}" >>$FILTERED_FILELIST
+                mvlogger "$PRIMARYSTORAGENAME/$SHARENAME used: $(bytes_to_human $CACHESHARERESERVEDSPACE)"
                 continue
             fi
         elif [ $SHAREUSECACHE = "no" ]; then
@@ -647,16 +591,58 @@ createFilteredFilelist (){
 
 
         #Add Ignore Hidden Files to find string
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$HIDDENFILES" == "yes" ]; then
-            mvlogger "Adding Ignore Hidden Files: ${HIDDENFILES}"
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ]) && [ "$HIDDENFILES" == "yes" ]; then
+            mvlogger "Skipping Hidden Files. File size are taken into account in the calculation of the threshold"
             FINDSTR+=" -not -path '*/\.*'"
+            HIDDENFILES_RESERVED_SPACE=$(find "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" -type f -path '*/\.*' -print0 | xargs -0 du -sh | awk '{ sum += $1 } END { print sum }')
+            echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_PATH_RESERVED_SPACE|0|0|0|/mnt/$PRIMARYSTORAGENAME/$SHARENAME hidden files" >>$FILTERED_FILELIST
+            mvlogger "    Hidden files are using $(bytes_to_human $SKIPPED_PATH_RESERVED_SPACE)"
         fi
 
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFOLDERSLIST" ]; then
-            mvlogger "Adding Skip Folder List. List Path: ${SKIPFILESPATH}"
-            while IFS= read -r folder; do
-                FINDSTR+=" -not -path '${folder}'"
-            done <<<"$SKIPFOLDERSLIST"
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ] ) && [ -f "$SKIPFILESLIST" ] && grep -q "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" "$SKIPFILESLIST"; then
+            mvlogger "Skipping Files from List. File size are taken into account in the calculation of the threshold"
+            mvlogger "List Path: ${SKIPFILESLIST}:"
+            TOTAL_SKIPPED_PATH_RESERVED_SPACE=0
+            while IFS= read -r skipped_path; do
+                SKIPPED_PATH_RESERVED_SPACE=""
+                skipped_path="${skipped_path%/}"  # Remove potential trailing slash
+                if [ -d "$skipped_path" ]; then
+                    # Size calculation
+                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh $skipped_path | awk '{print $1}' | human_to_bytes)
+                    # Add /* at the end for better reading in Mover_action file
+                    skipped_path="${skipped_path}/*" # add slash asterisk
+                    # Add filter to find string
+                    FINDSTR+=" -not -path \"${skipped_path}\"" 
+                elif [ -f "$skipped_path" ]; then
+                    # Add filter to find string
+                    FINDSTR+=" -not -name \"${skipped_path}\""
+                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh ${skipped_path}  | awk '{print $1}')
+                fi                    
+                if [ ! -z "$SKIPPED_PATH_RESERVED_SPACE" ]; then
+                    echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_PATH_RESERVED_SPACE|0|0|0|${skipped_path}" >> $FILTERED_FILELIST
+                    TOTAL_SKIPPED_PATH_RESERVED_SPACE=$((TOTAL_SKIPPED_PATH_RESERVED_SPACE + SKIPPED_PATH_RESERVED_SPACE))
+                else
+                    mvlogger "Error calculating size for $skipped_path"
+                fi
+            done <<< $(grep "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" "$SKIPFILESLIST")
+            mvlogger "    Ignored files are using $(bytes_to_human $TOTAL_SKIPPED_PATH_RESERVED_SPACE)"
+        fi
+
+        #Add Skipfilelist to find string
+        TOTAL_SKIPPED_FILETYPES_RESERVED_SPACE=0
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ] ) && ([ ! -z "$SKIPFILETYPES" ] || [ ! -z "$globalSkipFileTypes" ]); then
+            mvlogger "Skipping Filetypes from List. File sizes are taken into account for the calculation of the threshold"
+            for ext in $([ $overrideFlag = 1 ] && echo -n "$SKIPFILETYPES") $(echo -n "$globalSkipFileTypes"); do
+                FINDSTR+=" -not -name \*.$ext"
+                SKIPPED_FILETYPES_RESERVED_SPACE=$(find /mnt/$PRIMARYSTORAGENAME/$SHARENAME -type f -name \*.$ext -print0 | xargs -0 du -sh | awk '{print $1}' | human_to_bytes | awk '{ sum += $1 } END { print sum }')
+                if [ $? -eq 0 ]; then
+                    echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_FILETYPES_RESERVED_SPACE|0|0|0|$SHAREPATH/**/*.$ext" >>$FILTERED_FILELIST
+                    TOTAL_SKIPPED_FILETYPES_RESERVED_SPACE=$(( TOTAL_SKIPPED_FILETYPES_RESERVED_SPACE + SKIPPED_FILETYPES_RESERVED_SPACE))
+                else
+                    mvlogger "Error calculating size for $skipFileTypes"
+                fi
+            done
+            mvlogger "    Ignored filetypes are using $(bytes_to_human $TOTAL_SKIPPED_FILETYPES_RESERVED_SPACE)"
         fi
 
         #Add Size to find string
@@ -673,31 +659,6 @@ createFilteredFilelist (){
             FINDSTR+="{"
         fi
         FINDSTR+="printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME, SHARENAME, SHAREUSECACHE, \$1, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
-
-        #Add additional commands
-        #Add Skipfilelist to find string
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFILESLIST" ]; then
-            mvlogger "Adding Skip File List. List Path: ${SKIPFILESPATH}"
-
-            FINDSTR+=" | grep -vFx -f <(sed 's/\/*$//' '$SKIPFILESLIST')"
-            mvlogger "Skipfilelist string: $FINDSTR"
-        fi
-
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ -n "$SKIPFILETYPES" ]; then
-            FINDSTR+=" | grep -iv"
-            for i in $(echo $SKIPFILETYPES | sed "s/,/ /g"); do
-                FINDSTR+=" -e '\\$i'"
-            done
-            mvlogger "Skipfiletypes string: $FINDSTR"
-        fi
-        
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ $overrideFlag = 1 ] && [ -n "$globalSkipFileTypes" ]; then
-            FINDSTR+=" | grep -iv"
-            for i in $(echo $globalSkipFileTypes | sed "s/,/ /g"); do
-                FINDSTR+=" -e '\\$i'"
-            done
-            mvlogger "Global skipfiletypes string: $FINDSTR"
-        fi
 
         if [ -d "$SHAREPATH" ] || [ "$SHAREUSECACHE" = "prefer" ] || [ $REBALANCESHARES = "yes" ] ; then
             [ $CTIME == "yes" ] && mvlogger "Filtering $SHARENAME files... (can take a moment)"
@@ -767,6 +728,7 @@ createFilteredFilelist (){
         sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
         rm $tempfile1 $tempfile2
     fi
+exit
 }
 
 decideMoveActions () {
@@ -784,46 +746,6 @@ decideMoveActions () {
     # $6:PRIMARYSIZETRESH $7:FILESIZE $8:SPARSENESS $9:NBLINKS $10:INODE $11:FILEPATH
     
     awk -F"|" -v AGE="$AGE" -v STATS_FILE="$STATS_FILE" -v LASTCACHESYNC=$LASTCACHESYNC -v SOFTSTOPFILE="$SOFTSTOPFILE" -v SYNCHRONIZECACHE=$SYNCHRONIZECACHE -v REBALANCESHARES=$REBALANCESHARES -v RESYNCHRONIZECACHE=$RESYNCHRONIZECACHE '
-        function is_duplicate(key, file_size) {
-            if (prev[key]) {
-                file_size = $7
-                $7 = 1
-                return true
-            } else {
-                prev[key] = 1
-                return false
-            }
-        }
-
-        function is_hardlink(inode, key) {
-            if ($9 > 1) {
-                key = $1 "|" $2 "|" $3 "|" $10
-                if (prev[key]) {
-                    file_size = 0
-                    $7 = 0
-                    return true
-                } else {
-                    prev[key] = 1
-                    return false
-                }
-            }
-            return false
-        }
-
-        function extract_path(filepath) {
-            split(filepath, path_parts, "/")
-            storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
-            storage_pool = path_parts[3]
-            file_path = ""
-            for (i = 4; i <= length(path_parts); i++) {
-                file_path = file_path path_parts[i]
-                if (i < length(path_parts)) {
-                    file_path = file_path "/"
-                }
-            }
-            return storage_path "|" storage_pool "|" file_path
-        }
-
         BEGIN {
             FS = OFS = "|"
 
@@ -842,35 +764,44 @@ decideMoveActions () {
                 exit 1
             }
 
-            # Extract the part after the first three slashes (/mnt/pool/) in the ninth field (filepath)
-            extracted_path = extract_path($11)
-            split(extracted_path, path_parts, "|")
-            storage_path = path_parts[1]
-            storage_pool = path_parts[2]
-            file_path = path_parts[3]
-
-            # Handle duplicates
-            key = $3 "|" $5 "|" $7 "|" file_path
-            duplicate = is_duplicate(key, file_size)
+            # Extract the part after the first three slashes (/mnt/pool/) in the eleventh field (filepath)
+            split($11, path_parts, "/")
+            storage_path = path_parts[1] "/" path_parts[2] "/" path_parts[3]
+            storage_pool = path_parts[3]
+            file_path = ""
+            for (i = 4; i <= length(path_parts); i++) {
+                file_path = file_path path_parts[i]
+                if (i < length(path_parts)) {
+                    file_path = file_path "/"
+                }
+            }
 
             # Handle hardlinks
-            hardlink = is_hardlink($9, key)
+            if ($9 > 1) {
+                key = $1 "|" $2 "|" $3 "|" $10
+                if (prev[key]) {
+                    $7 = 0
+                } else {
+                    prev[key] = 1
+                }
+            }
+
 
             # Update pool sum (use pool_sums[$1])
             pool_sums[$1] += $7
 
             # Take decision
-            if (storage_pool == $1 && duplicate == false) {
+            if (storage_pool == $1) {
                 # Make decision to move or keep:
-                action = ($4 != "only" && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
+                action = (($4 != "only" && $4 != "skipped") && (($4 == "prefer" || $4 == "yes") && (pool_sums[$1] >= $6 && AGE == -1) || AGE >= 0) || $4 == "no" ) ? "move from primary" : "keep on primary"
 
                 if (action == "keep on primary")  {
                     source = storage_path
-                    if (SYNCHRONIZECACHE == "yes" && $4 != "only" && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" ) )  {
+                    if (SYNCHRONIZECACHE == "yes" && ($4 != "only" && $4 != "skipped") && ( $5 >= LASTCACHESYNC || RESYNCHRONIZECACHE == "yes" ) )  {
                         action = "sync from primary"
                         destination = "/mnt/" $2
                         pool_stats[$1]["files_from_primary"] += 1
-                        pool_stats[$1]["total_size_from_primary"] += file_size
+                        pool_stats[$1]["total_size_from_primary"] += $7
                     } else {
                         destination = "none"
                     }
@@ -881,10 +812,10 @@ decideMoveActions () {
                     source = storage_path
                     destination = "/mnt/" $2
                     pool_stats[$1]["files_from_primary"] += 1
-                    pool_stats[$1]["total_size_from_primary"] += file_size
+                    pool_stats[$1]["total_size_from_primary"] += $7
                 }
             } else {
-                if ((storage_pool == "user" || ($2 == "user0" && storage_pool ~ "disk")) && duplicate == false) {
+                if (storage_pool == "user" || ($2 == "user0" && storage_pool ~ "disk")) {
                     # Make decision to move or keep:
                     action = (($4 == "only" && REBALANCESHARES == "yes") || ($4 == "prefer" && ((pool_sums[$1] <= $6 && AGE == -1) || AGE >= 0))) ? "move from secondary" : "keep on secondary"
 
@@ -897,11 +828,11 @@ decideMoveActions () {
                     if (action == "move from secondary") {
                         source = storage_path
                         destination = "/mnt/" $1
-                        if (SYNCHRONIZECACHE == "yes" && $4 != "only")  {
+                        if (SYNCHRONIZECACHE == "yes" && ($4 != "only" && $4 != "skipped"))  {
                             action = "sync from secondary"
                         }
                         pool_stats[$1]["files_from_secondary"] += 1
-                        pool_stats[$1]["total_size_from_secondary"] += file_size
+                        pool_stats[$1]["total_size_from_secondary"] += $7
                     }
                 } else {
                     if (REBALANCESHARES == "yes") {
@@ -910,7 +841,7 @@ decideMoveActions () {
                             source = storage_path
                             destination = "/mnt/" $1
                             pool_stats[$1]["files_from_unattended"] += 1
-                            pool_stats[$1]["total_size_from_unattended"] += file_size
+                            pool_stats[$1]["total_size_from_unattended"] += $7
                             # Add a line in mover_action as intermediary step
                             printf "%s|%s|%s|%d|%d|%d|%d|%d|%s|%s|%s|%s|%s\n", $1, $3, $4, $5, $7, pool_sums[$1], $6, $9, $10, action, source, destination, file_path
                             action="sync unattended to secondary"
@@ -927,7 +858,7 @@ decideMoveActions () {
                             }
                         }
                         pool_stats[$1]["files_from_unattended"] += 1
-                        pool_stats[$1]["total_size_from_unattended"] += file_size
+                        pool_stats[$1]["total_size_from_unattended"] += $7
                     } else {
                         action="keep misplaced" #If not on primary nor secondary, file will be tagged misplaced                
                         source = storage_path
@@ -999,7 +930,7 @@ decideMoveActions () {
         mvlogger "Warning: $UNATTENDEDFILES files are stored outside their primary or secondary storages and won't be moved according to actual settings."
     fi
     if [ $TOTALFILES -gt 0 ]; then
-        mvlogger "A total of $TOTALFILES files representing $(convert_bytes $TOTALSIZE) will be moved/synced:"
+        mvlogger "A total of $TOTALFILES files representing $(bytes_to_human $TOTALSIZE) will be moved/synced:"
         if [ $TOTALPRIMARYFILES -gt 0 ]; then
             # Read data line by line using while loop
             while IFS="|" read -r PRIMARYSTORAGENAME PRIMARYFILES PRIMARYSIZE SECONDARYFILES SECONDARYSIZE; do
@@ -1009,21 +940,15 @@ decideMoveActions () {
                 fi
                 # Check if line is not the total line nor the header line
                 if [ $PRIMARYSTORAGENAME != "TOTAL" ] && [ $PRIMARYSTORAGENAME != "PRIMARYSTORAGENAME" ]; then
-                    mvlogger "- $PRIMARYFILES files representing $(convert_bytes $PRIMARYSIZE) will be moved/sync from $PRIMARYSTORAGENAME to secondary"
+                    mvlogger "- $PRIMARYFILES files representing $(bytes_to_human $PRIMARYSIZE) will be moved/sync from $PRIMARYSTORAGENAME to secondary"
                 fi
             done < "$STATS_FILE"
-        else
-            mvlogger "- No new files will be moved/synced from primary to secondary"
         fi
         if [ $TOTALSECONDARYFILES -gt 0 ]; then
-            mvlogger "- $TOTALSECONDARYFILES new files representing $(convert_bytes $TOTALSECONDARYSIZE) will then be moved/synced from secondary to primary"
-        else
-            mvlogger "- No new files will be moved/synced from secondary to primary"
+            mvlogger "- $TOTALSECONDARYFILES new files representing $(bytes_to_human $TOTALSECONDARYSIZE) will then be moved/synced from secondary to primary"
         fi
         if [ $TOTALUNATTENDEDFILES -gt 0 ]; then
-            mvlogger "- $TOTALUNATTENDEDFILES files from unattended storage and representing $(convert_bytes $TOTALUNATTENDEDSIZE) will then be rebalanced from unattended shares to primary and/or secondary"
-        else
-            mvlogger "- No new files will be moved/synced from secondary to primary"
+            mvlogger "- $TOTALUNATTENDEDFILES files from unattended storage and representing $(bytes_to_human $TOTALUNATTENDEDSIZE) will then be rebalanced from unattended shares to primary and/or secondary"
         fi
     else
         mvlogger "No new files will be moved/synced from primary to secondary"
@@ -1093,6 +1018,13 @@ processTheMoves () {
             SYNCED_FILES=$(grep "|$NBLINKS|$INODE|" $MOVER_ACTIONLIST | grep "|$MODIFICATIONTIME|" |  grep "ary|$SOURCE|" | cut -d'|' -f13 | while read line; do echo "\"$SOURCE/./$line\""; done | tr '\n' ' ')
             GUI_CURRENT_FILE=$SYNCED_FILES
 
+            # Check if list is complete
+            NBFILES=$(($(echo "$SYNCED_FILES" | grep -o '" "' | wc -l) + 1))
+            if [ $NBFILES != $NBLINKS ]; then
+                mvlogger "Expected $NBLINKS files, got $NBFILES. Not moving $SYNCED_FILES to prevent breaking hardlinks"
+                continue
+            fi
+
             # Proceed with rsync
             if [[ "$ACTION" =~ "move" ]]; then
                 # Some verbosity
@@ -1117,24 +1049,41 @@ processTheMoves () {
             if [[ "$SOURCE" =~ $PRIMARYSTORAGENAME ]]; then
                 REMAINING_CACHE_SIZE=$(($REMAINING_CACHE_SIZE - $FILESIZE))
                 REMAINING_CACHE_FILES=$(($REMAINING_CACHE_FILES - $NBLINKS))
-#                mvlogger "$REMAINING_CACHE_FILES files remaining from $PRIMARYSTORAGENAME to array  $(convert_bytes $REMAINING_CACHE_SIZE)"
+                mvlogger "$REMAINING_CACHE_FILES files remaining from caches to array  $(bytes_to_human $REMAINING_CACHE_SIZE)"
             else
                 REMAINING_ARRAY_SIZE=$(($REMAINING_ARRAY_SIZE - $FILESIZE))
                 REMAINING_ARRAY_FILES=$(($REMAINING_ARRAY_FILES - $NBLINKS))
-#                mvlogger "$REMAINING_ARRAY_FILES files remaining from array to $PRIMARYSTORAGENAME $(convert_bytes $REMAINING_ARRAY_SIZE)"
+                mvlogger "$REMAINING_ARRAY_FILES files remaining from array to caches $(bytes_to_human $REMAINING_ARRAY_SIZE)"
             fi
             moverStatusWrite
         done
     done
 
     mvlogger "$(titleLine "Cleaning up" '-')"
-    grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq | while read SHARENAME; do 
+    while read SHARENAME; do 
+        if [ -e $SOFTSTOPFILE ]; then
+            [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+            return
+        fi        
+        FINDSTR="find /mnt/*/$SHARENAME -not -path \"/mnt/user*\""
         mvlogger "Deleting empty dirs in $SHARENAME..."
-        find /mnt/*/$SHARENAME -type d -empty -delete
-    done
+            while IFS= read -r skipped_path; do
+                skipped_path="${skipped_path%/}"
+                if [ -d "$skipped_path" ]; then
+                    FINDSTR+=" -not -path \"${skipped_path}\"" 
+                fi                    
+            done <<< $(grep "$SHARENAME" "$SKIPFILESLIST")
+        FINDSTR+=" -type d -mindepth 2 -empty"
+        if [ $TESTMODE = "no" ]; then
+            FINDSTR+=" -print0 | xargs -0 rm -rv"
+        else
+            FINDSTR+=" -print"
+        fi
+        eval "$FINDSTR"
+    done <<< $(grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq)
 
 
-    if [ $TESTMODE != "yes" ] && grep -q "|sync from" $MOVER_ACTIONLIST ; then
+    if [ $TESTMODE != "yes" ] && [ ! -e $SOFTSTOPFILE ] && grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
         mvlogger "Set last sync date in config file: $EPOCH = $NOW"
         if grep -q "lastCacheSync=" "$MOVERTUNINGCFGFILE"; then
@@ -1213,13 +1162,13 @@ start() {
     shopt -s nullglob
 
     #Run mover before script if specified.
-    if [ ! -z "$BEFORESCRIPT" ]; then
+    if [ ! -z "$BEFORESCRIPT" ] && [ ! -e $SOFTSTOPFILE ]; then
         if [ -f "$BEFORESCRIPT" ] && [ -x "$BEFORESCRIPT" ]; then
             mvlogger "Launching before script: $BEFORESCRIPT"
             eval \"$BEFORESCRIPT\"
             mvlogger "Before script finished"
         else
-            mvlogger "Before script file does not exist or is not executable"
+            mvlogger "Before script file $BEFORESCRIPT does not exist or is not executable"
             mvlogger "Skipping"
         fi
     fi
@@ -1232,28 +1181,31 @@ start() {
 
     #Write the final status just for sure
     moverStatusWrite
-
-    mvlogger "Cleaning lock and stop files"
-    for file in $PIDFILE $SOFTSTOPFILE; do
-        [[ -e "$file" ]] && rm -f "$file"
-    done
  
     #Run mover after script if specified.
-    if [ ! -z "$AFTERSCRIPT" ]; then
+    if [ ! -z "$AFTERSCRIPT" ] && [ ! -e $SOFTSTOPFILE ]; then
         if [ -f "$AFTERSCRIPT" ] && [ -x "$AFTERSCRIPT" ]; then
             mvlogger "Launching after script: $AFTERSCRIPT"
             eval \"$AFTERSCRIPT\"
             mvlogger "After script finished with result: $( $? && "OK" || $?)"
         else
-            mvlogger "After script file does not exist or is not executable."
+            mvlogger "After script file $AFTERSCRIPT does not exist or is not executable."
             mvlogger "Skipping"
         fi
     fi
 
     #Reset run-once settings
-    for config_file in $MOVERTUNINGCFGFILE /boot/config/plugins/ca.mover.tuning/shareOverrideConfig/*.cfg; do
-        resetRunOnceMoverSettings $MOVERTUNINGCFGFILE
+    if [ ! -e $SOFTSTOPFILE ]; then
+        for config_file in $MOVERTUNINGCFGFILE /boot/config/plugins/ca.mover.tuning/shareOverrideConfig/*.cfg; do
+            resetRunOnceMoverSettings $MOVERTUNINGCFGFILE
+        done
+    fi
+
+    mvlogger "Cleaning lock and stop files"
+    for file in $PIDFILE $SOFTSTOPFILE; do
+        [[ -e "$file" ]] && rm -f "$file"
     done
+
     mvlogger "$(titleLine 'WE ARE DONE !' '*')"
 }
 
