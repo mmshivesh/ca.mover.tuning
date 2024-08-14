@@ -654,7 +654,11 @@ createFilteredFilelist (){
             FINDSTR+=" '"
         fi
         if [ $CTIME == "yes" ]; then
-            FINDSTR+="{filepath = \$6; cmd=\"stat -c%W \" filepath; cmd | getline result; close(cmd); sub(/\\n\$/, \"\", result); \$1 = result;"  
+            FINDSTR+="{cmd=\"stat -c%W \\\"\"\$6\"\\\"\";
+                cmd | getline result;
+                close(cmd);
+                sub(/\\n\$/, \"\", result);
+            "
         else
             FINDSTR+="{"
         fi
