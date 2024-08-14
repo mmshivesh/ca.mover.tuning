@@ -728,7 +728,6 @@ createFilteredFilelist (){
         sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
         rm $tempfile1 $tempfile2
     fi
-exit
 }
 
 decideMoveActions () {
