@@ -29,20 +29,21 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
-- Next version
-    - Even [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) ([R3yn4ld](https://github.com/R3yn4ld)))
+- 2024.08.12
+    - Even [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) (hopefully) ([R3yn4ld](https://github.com/R3yn4ld))
         - Rewriten Ignore filelist from file and filetypes filtering functions (major)
         - Improve calculating size of filtered files and filetypes
         - Update calculation from basic/bc to numfmt. Removed bc option
         - Added verification for not breaking hardlinks when an hardlinked file is filtered
-    - Added testmode to cleaning empty folder, and a min depth of 2.
+    - Added testmode to cleaning empty folder function, and a min depth of 2.
+    - [Fix ctime bug](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-ctime-bug) ([R3yn4ld](https://github.com/R3yn4ld))
 
 - 2024.08.12
     - [Repair/optimize cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/Better-cache-priming) ([R3yn4ld](https://github.com/R3yn4ld)).
     - Adding check to bc (un)installation routine
     - [Add bc (un)install option](https://github.com/R3yn4ld/ca.mover.tuning/tree/bc-nerdtools-dependancy) ([R3yn4ld](https://github.com/R3yn4ld))
     - Force test mode only on major upgrade, keep on minor ([R3yn4ld](https://github.com/R3yn4ld))
-    - [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) ([R3yn4ld](https://github.com/R3yn4ld)))
+    - [Better cache priming](https://github.com/R3yn4ld/ca.mover.tuning/tree/better-cache-priming) ([R3yn4ld](https://github.com/R3yn4ld))
 
 - 2024.08.11
     - [Allow operation without array if multiple pools](https://github.com/R3yn4ld/ca.mover.tuning/tree/Allow-operation-without-array-if-multiple-pools) ([R3yn4ld](https://github.com/R3yn4ld)): Fixed fatal error bug
