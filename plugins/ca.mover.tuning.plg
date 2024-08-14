@@ -2,9 +2,9 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.08.12.0023">
+<!ENTITY version   "2024.08.12.0852">
 <!ENTITY upgrade   "minor">
-<!ENTITY md5       "450d6929a373b7def739801423b32c38">
+<!ENTITY md5       "ec5dcaa5fe7264b678df08ba9abddaca">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -25,6 +25,10 @@
 ###2024.08.12
 - Add bc (un)install option [R3yn4ld]
 - Force test mode only on major upgrade, keep on minor. [R3yn4ld]
+- Repair/optimize cache priming.
+- Adding check to bc (un)installation routine
+- Add bc (un)install option
+- Force test mode only on major upgrade, keep on minor.
 
 ###2024.08.11
 - Allow-operation-without-array-if-multiple-pools [R3yn4ld]: Fixed fatal error bug
