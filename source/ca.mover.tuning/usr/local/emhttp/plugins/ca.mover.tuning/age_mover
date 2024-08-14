@@ -645,23 +645,32 @@ createFilteredFilelist (){
             mvlogger "    Ignored filetypes are using $(bytes_to_human $TOTAL_SKIPPED_FILETYPES_RESERVED_SPACE)"
         fi
 
-        #Add Size to find string
+        #Add Size to find string and pass to awk to modify some fields
         FINDSTR+=" -printf '%T@|%s|%S|%n|%i|%p|\0' | awk -v RS='\0' -v FS='|' -v SPARSENESS=\$SPARSENESS -v PRIMARYSTORAGENAME=\$PRIMARYSTORAGENAME -v SECONDARYSTORAGENAME=\$SECONDARYSTORAGENAME -v SHARENAME=\$SHARENAME -v SHAREUSECACHE=\$SHAREUSECACHE -v PRIMARYSIZETHRESH=\$PRIMARYSIZETHRESH"
         if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && [ "$SPARSENESS" -gt 0 ]; then
             mvlogger "Adding Sparseness size ${SPARSENESS}"
-            FINDSTR+="' \$3 > 0.SPARSENESS '"
+            FINDSTR+="' \$3 > 0.SPARSENESS ' {"
         else
-            FINDSTR+=" '"
+            FINDSTR+=" ' {"
         fi
+        # Get Birthtime with stat if CTIME option enabled
         if [ $CTIME == "yes" ]; then
-            FINDSTR+="{cmd=\"stat -c%W \\\"\"\$6\"\\\"\";
+            FINDSTR+="cmd=\"stat -c%W \\\"\"\$6\"\\\"\";
                 cmd | getline result;
                 close(cmd);
                 sub(/\\n\$/, \"\", result);
+                \$1 = result;
             "
-        else
-            FINDSTR+="{"
         fi
+        # Get size with du if on zfs mountpoint with compression enabled
+#        if is_zfs_mountpoint_fstype "/mnt/$PRIMARYSTORAGENAME" && [ "$(zfs get compression -Hpo value "$PRIMARYSTORAGENAME/$SHARENAME")" == "on" ]; then
+#            FINDSTR+="cmd = \"du -sh \\\"\"\$6\"\\\" | numfmt --from=iec\";
+#                cmd | getline result;
+#                close(cmd);
+#                sub(/\\n\$/, \"\", result);
+#                \$2 = result;
+#            " 
+#        fi
         FINDSTR+="printf \"%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\\n\", PRIMARYSTORAGENAME, SECONDARYSTORAGENAME, SHARENAME, SHAREUSECACHE, \$1, PRIMARYSIZETHRESH, \$2, \$3, \$4, \$5, \$6}'"
 
         if [ -d "$SHAREPATH" ] || [ "$SHAREUSECACHE" = "prefer" ] || [ $REBALANCESHARES = "yes" ] ; then
@@ -1076,11 +1085,11 @@ processTheMoves () {
                     FINDSTR+=" -not -path \"${skipped_path}\"" 
                 fi                    
             done <<< $(grep "$SHARENAME" "$SKIPFILESLIST")
-        FINDSTR+=" -type d -mindepth 2 -empty"
+        FINDSTR+=" -type d -mindepth 2 -empty -print0 | xargs -0 "
         if [ $TESTMODE = "no" ]; then
-            FINDSTR+=" -print0 | xargs -0 rm -rv"
+            FINDSTR+=" rmdir -v"
         else
-            FINDSTR+=" -print"
+            FINDSTR+=" -I{} echo \"rmdir (dry-run): removing directory, {}\""
         fi
         eval "$FINDSTR"
     done <<< $(grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq)
