@@ -16,7 +16,9 @@
 
 <CHANGES>
 ###Next version
-- Better empty folder cleaner
+- Fix ignore list reserved space double quoting (Thanks silver226) [R3yn4ld]
+
+- Better empty folder cleaner  [R3yn4ld]
   - Rewritten to rmdir parent directory of a moved file if empty (drawbacks: will let multidirectory dirs  alive)
   - Added option to enable/disable empty folder cleaner added in Settings UI
   - UI improvements, settings sorted
