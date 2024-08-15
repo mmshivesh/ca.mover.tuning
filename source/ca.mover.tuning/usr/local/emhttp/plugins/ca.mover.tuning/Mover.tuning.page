@@ -10,6 +10,7 @@ if ($var['shareCacheEnabled']!='yes') {
 }
 $plugin='ca.mover.tuning';
 $cfg = parse_plugin_cfg($plugin);
+$advancedSettings =  ($cfg['advancedSettings'] != "yes") ? "no" : "yes";
 $advancedFilters =  ($cfg['advancedFilters'] != "yes") ? "no" : "yes";
 $advancedOptions =  ($cfg['advancedOptions'] != "yes") ? "no" : "yes";
 $moverDisabled =  ($cfg['moverDisabled'] != "yes") ? "no" : "yes";
@@ -58,7 +59,16 @@ function updateScreenMoverTuningSettings(option,slow) {
     break;
   }
 }
-function updateScreenMoverAdvancedFilters(option,slow) {
+function updateScreenMoverAdvancedSettings(option,slow) {
+  switch (option) {
+  case 'no':
+    $('#moverAdvancedSettings').hide(slow);
+    break;
+  case 'yes':
+    $('#moverAdvancedSettings').show(slow);
+    break;
+  }
+}function updateScreenMoverAdvancedFilters(option,slow) {
   switch (option) {
   case 'no':
     $('#moverAdvancedFilters').hide(slow);
@@ -80,11 +90,17 @@ function updateScreenMoverAdvancedOptions(option,slow) {
   }
 }
 $(function() {
-  updateScreenMoverAdvancedOptions('<? echo $advancedOptions ?>');
-  updateScreenMoverAdvancedFilters('<? echo $advancedFilters ?>');
   updateScreenMoverTuningSettings('<? echo $moverDisabled ?>');
+  updateScreenMoverAdvancedSettings('<? echo $advancedSettings ?>');
+  updateScreenMoverAdvancedFilters('<? echo $advancedFilters ?>');
+  updateScreenMoverAdvancedOptions('<? echo $advancedOptions ?>');
 });
 </script>
+
+<div class="title">
+<span class="left"><i class="fa fa-cog title"></i>Mover Tuning Plugin Settings</span>
+<span class="right">Version: <?=$version?></span>
+</div>
 
 <div class='moverUpdate'></div>
 <form markdown="1" method="POST" action="/update.php" target="progressFrame" onsubmit="updateCron();">
@@ -93,11 +109,12 @@ Disable Mover running on a schedule:
 : <select name='moverDisabled' size='1' class='narrow' onchange="updateScreenMoverTuningSettings(this.value, 'slow')">
 <?=mk_option($cfg['moverDisabled'],"no","No")?>
 <?=mk_option($cfg['moverDisabled'],"yes","Yes")?>
-</select><span style="float:right">Version: <?=$version?></span>
-*Note that setting this to yes effectively disables this plugin
+</select>
+* Note that setting this to yes effectively disables this plugin
 
 > This will prevent mover from running at the schedule set in Mover Settings.  You will only be able to run mover by manually invoking it.
 
+<div markdown="1" id="moverTuningSettings">
 Test Mode (dry run):
 : <select name='testmode' size='1' class='narrow'>
 <?=mk_option($cfg['testmode'],"no",'No')?>
@@ -105,6 +122,92 @@ Test Mode (dry run):
 </select>
 
 > Test Mode will not run mover but will output the custom find command results to /tmp/ca.mover.tuning/. Caution - If you have "Move Now button follows plug-in filters" set to no, original Mover will still run.  
+
+Log Mover Tuning plugin actions
+: <select name='logging' size='1' class='narrow'>
+<?=mk_option($cfg['logging'],"no",'No')?>
+<?=mk_option($cfg['logging'],"yes","Yes")?>
+</select>
+
+> Enables or disables logging from this plugin. Logs are displayed in syslog and stored at /tmp/ca.mover.tuning
+
+Show advanced settings:
+: <select name='advancedSettings' size='1' class='narrow' onchange="updateScreenMoverAdvancedSettings(this.value, 'slow')">
+<?=mk_option($cfg['advancedSettings'],"no","No")?>
+<?=mk_option($cfg['advancedSettings'],"yes","Yes")?>
+</select>
+
+> Show advanced settings options. Please note that these settings are active if set even if not shown.
+
+<div markdown="1" id="moverAdvancedSettings">
+Let scheduled mover run during a parity check / rebuild:
+: <select name='parity' size='1' class='narrow'>
+  <?=mk_option($cfg['parity'],'yes','Yes')?>
+	<?=mk_option($cfg['parity'],'no','No')?>
+</select>
+
+> If a parity check or disk rebuild is in progress, this will prevent mover from running
+
+Priority for mover process
+: <select name='moverNice' size='1' class='narrow'>
+<?=mk_option($cfg['moverNice'],"0","Normal")?>
+<?=mk_option($cfg['moverNice'],"5","Low")?>
+<?=mk_option($cfg['moverNice'],"19","Very Low")?>
+</select>
+
+Priority for disk I/O
+: <select name='moverIO' size='1' class='narrow'>
+<?=mk_option($cfg['moverIO'],"-c 2 -n 0","Normal")?>
+<?=mk_option($cfg['moverIO'],"-c 2 -n 7","Low")?>
+<?=mk_option($cfg['moverIO'],"-c 3","Idle")?>
+</select>
+
+> The above two options set the priority for the mover process.  Setting these options may help with circumstances where when mover runs other applications may pause or buffer.  Note that moving the files may take longer when setting these options
+
+Force move of all files on a schedule:
+: <select name='force' size='1' id='forceCron' class='narrow' onchange='$(".mycron").toggleAttr("disabled")'>
+<?=mk_option($cfg['force'],"no",'No')?>
+<?=mk_option($cfg['force'],"yes","Yes")?>
+</select>
+
+> Select yes to run original mover on a custom cron schedule.
+
+Cron Schedule to force move all of files:
+: <input type='text' id='cronSchedule' name='cron' size='1' class='narrow mycron' value='<?=$cfg['cron']?>' <?=$cronDisabled?>>
+
+> Cron Schedule entry example 20 4 1 * *   To run the first day of the month at 4:20 AM  
+
+Allow force mover schedule to run during a parity check/rebuild:
+: <select name='forceParity' size='1' class='narrow mycron' <?=$cronDisabled?>>
+<?=mk_option($cfg['forceParity'],"yes","Yes")?>
+<?=mk_option($cfg['forceParity'],"no","No")?>
+</select>
+
+> Setting a cron schedule to force a move will run mover on that schedule.
+> <br>Example: In Mover Settings you would have a schedule of Hourly.  During that schedule the rules above are followed.  The cron schedule for a force move could be set to <strong>30 03 * * *</strong> which would force all files to be moved at 3:30 AM every day regardless of the rules
+> <br>Note that no error checking is done on the cron schedule.  It must be a valid entry.
+
+Script to run before mover (No checks, always runs):
+: <input type='text' name='beforeScript' size='1' class='narrow mybefore' value='<?=$cfg['beforeScript']?>'>
+
+> Path to a script that will be run before mover starts.  This script will always be run even if the filters don't find anything to move.
+
+
+Script to run after mover (No checks, always runs):
+: <input type='text' name='afterScript' size='1' class='narrow myafter' value='<?=$cfg['afterScript']?>'>
+
+> Path to a script that will be run after mover finishes.  This script will always be run.
+
+Move Now button follows plug-in filters:
+: <select name='movenow' size='1' id='movenowbtn' class='narrow'>
+<?=mk_option($cfg['movenow'],"no",'No')?>
+<?=mk_option($cfg['movenow'],"yes","Yes")?>
+</select>
+
+> Select yes to to follow plug-in filters, no to run original mover from button.
+</div>
+
+<div class="title"><span class="center"><i class="fa fa-filter title"></i>Filters</span></div>
 
 Only move if above this threshold of used Primary (cache) space:
 : <select name="movingThreshold" size="1" class='narrow'>
@@ -251,111 +354,6 @@ Ignore All hidden files and directories
 > Removes any files or directories that start with a .
 > Adds -not -path '*/\.*' to the end of the find command.
 
-</div>
-
-Let scheduled mover run during a parity check / rebuild:
-: <select name='parity' size='1' class='narrow'>
-  <?=mk_option($cfg['parity'],'yes','Yes')?>
-	<?=mk_option($cfg['parity'],'no','No')?>
-</select>
-
-> If a parity check or disk rebuild is in progress, this will prevent mover from running
-
-<div markdown="1" id="moverTuningSettings">
-Priority for mover process
-: <select name='moverNice' size='1' class='narrow'>
-<?=mk_option($cfg['moverNice'],"0","Normal")?>
-<?=mk_option($cfg['moverNice'],"5","Low")?>
-<?=mk_option($cfg['moverNice'],"19","Very Low")?>
-</select>
-
-Priority for disk I/O
-: <select name='moverIO' size='1' class='narrow'>
-<?=mk_option($cfg['moverIO'],"-c 2 -n 0","Normal")?>
-<?=mk_option($cfg['moverIO'],"-c 2 -n 7","Low")?>
-<?=mk_option($cfg['moverIO'],"-c 3","Idle")?>
-</select>
-
-> The above two options set the priority for the mover process.  Setting these options may help with circumstances where when mover runs other applications may pause or buffer.  Note that moving the files may take longer when setting these options
-
-Force turbo write on during mover:
-: <select name='enableTurbo' size='1' class='narrow'>
-<?=mk_option($cfg['enableTurbo'],"no","No")?>
-<?=mk_option($cfg['enableTurbo'],"yes","Yes")?>
-</select>
-
-> Forces unRaid to switch to turbo write mode (reconstruct write) when mover is running
-
-Rebalance shares:
-: <select name='rebalanceShares' size='1' class='narrow'>
-<?=mk_option($cfg['rebalanceShares'],"no",'No')?>
-<?=mk_option($cfg['rebalanceShares'],"yes","Yes")?>
-</select>
-
-> This will move files from shares to their primary and secondary storage if spread elsewhere. 
-> May imply moving older files from Primary->Secondary or Secondary->Primary if allowed (cache:prefer or cache:yes) to free some space. 
-
-Synchronize Primary files to Secondary
-: <select name='synchronizeCache' size='1' class='narrow'>
-<?=mk_option($cfg['synchronizeCache'],"no",'No')?>
-<?=mk_option($cfg['synchronizeCache'],"yes","Yes")?>
-</select>
-
-> This will synchronize the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
-> Reading and modification will still occur on Primary.
-> Only modified files since last sync are synchronized
-
-Log Mover Tuning plugin actions
-: <select name='logging' size='1' class='narrow'>
-<?=mk_option($cfg['logging'],"no",'No')?>
-<?=mk_option($cfg['logging'],"yes","Yes")?>
-</select>
-
-> Enables or disables logging from this plugin. Logs are displayed in syslog and stored at /tmp/ca.mover.tuning
-
-Show advanced options:
-: <select name='advancedOptions' size='1' class='narrow' onchange="updateScreenMoverAdvancedOptions(this.value, 'slow')">
-<?=mk_option($cfg['advancedOptions'],"no","No")?>
-<?=mk_option($cfg['advancedOptions'],"yes","Yes")?>
-</select>
-
-> Show advanced options. Please note that these options are active if set even if not shown.
-
-<div markdown="1" id="moverAdvancedOptions">
-Force move of all files on a schedule:
-: <select name='force' size='1' id='forceCron' class='narrow' onchange='$(".mycron").toggleAttr("disabled")'>
-<?=mk_option($cfg['force'],"no",'No')?>
-<?=mk_option($cfg['force'],"yes","Yes")?>
-</select>
-
-> Select yes to run original mover on a custom cron schedule.
-
-Cron Schedule to force move all of files:
-: <input type='text' id='cronSchedule' name='cron' size='1' class='narrow mycron' value='<?=$cfg['cron']?>' <?=$cronDisabled?>>
-
-> Cron Schedule entry example 20 4 1 * *   To run the first day of the month at 4:20 AM  
-
-Allow force mover schedule to run during a parity check/rebuild:
-: <select name='forceParity' size='1' class='narrow mycron' <?=$cronDisabled?>>
-<?=mk_option($cfg['forceParity'],"yes","Yes")?>
-<?=mk_option($cfg['forceParity'],"no","No")?>
-</select>
-
-> Setting a cron schedule to force a move will run mover on that schedule.
-> <br>Example: In Mover Settings you would have a schedule of Hourly.  During that schedule the rules above are followed.  The cron schedule for a force move could be set to <strong>30 03 * * *</strong> which would force all files to be moved at 3:30 AM every day regardless of the rules
-> <br>Note that no error checking is done on the cron schedule.  It must be a valid entry.
-
-Script to run before mover (No checks, always runs):
-: <input type='text' name='beforeScript' size='1' class='narrow mybefore' value='<?=$cfg['beforeScript']?>'>
-
-> Path to a script that will be run before mover starts.  This script will always be run even if the filters don't find anything to move.
-
-
-Script to run after mover (No checks, always runs):
-: <input type='text' name='afterScript' size='1' class='narrow myafter' value='<?=$cfg['afterScript']?>'>
-
-> Path to a script that will be run after mover finishes.  This script will always be run.
-
 Move All from Primary->Secondary (cache:yes) shares when disk is above a certain percentage:
 : <select name='omovercfg' size='1' class='narrow' onchange='$(".myomthresh").toggleAttr("disabled")'>
 <?=mk_option($cfg['omovercfg'],"no","No")?>
@@ -373,13 +371,71 @@ Move All from Primary->Secondary shares pool percentage:
 
 > Set to the amount of disk space used on the Primary pool to initiate a move of all files in a Primary->Secondary (cache:yes) share.  Filters will still run after, for any remaining pool's that do not meet this threshold.  This threshold should at a minimum be 5% larger than "Only move at this threshold of used primary (cache) space:" above. 
 
-Move Now button follows plug-in filters:
-: <select name='movenow' size='1' id='movenowbtn' class='narrow'>
-<?=mk_option($cfg['movenow'],"no",'No')?>
-<?=mk_option($cfg['movenow'],"yes","Yes")?>
+
+</div>
+
+<div class="title"><span class="center"><i class="fa fa-files-o title"></i>Mover options</span></div>
+
+Force turbo write during mover:
+: <select name='enableTurbo' size='1' class='narrow'>
+<?=mk_option($cfg['enableTurbo'],"no","No")?>
+<?=mk_option($cfg['enableTurbo'],"yes","Yes")?>
 </select>
 
-> Select yes to to follow plug-in filters, no to run original mover from button.
+> Forces unRaid to switch to turbo write mode (reconstruct write) when mover is running
+
+Clean empty folders
+: <select name='cleanFolders' size='1' class='narrow'>
+<?=mk_option($cfg['cleanFolders'],"no",'No')?>
+<?=mk_option($cfg['cleanFolders'],"yes","Yes")?>
+</select>
+
+> This will clean the folder of shares where files have been moved. 
+> This function will find empty folder (litteraly, empty, not any file, nor a .placeholder, inside) applying filter from ignore filelist if any.
+> By default it has a min depth of 2, for exeample: /mnt/*/share/dir1/dir2/dir3, it won't delete below dir3. See advanced option below.
+
+Synchronize Primary files to Secondary
+: <select name='synchronizeCache' size='1' class='narrow'>
+<?=mk_option($cfg['synchronizeCache'],"no",'No')?>
+<?=mk_option($cfg['synchronizeCache'],"yes","Yes")?>
+</select>
+
+> This will synchronize the Primary (cached) files on both Primary and Secondary (array) so they are backed up and parity protected. 
+> Reading and modification will still occur on Primary.
+> Only modified files since last sync are synchronized
+
+Show advanced options:
+: <select name='advancedOptions' size='1' class='narrow' onchange="updateScreenMoverAdvancedOptions(this.value, 'slow')">
+<?=mk_option($cfg['advancedOptions'],"no","No")?>
+<?=mk_option($cfg['advancedOptions'],"yes","Yes")?>
+</select>
+
+> Show advanced options. Please note that these options are active if set even if not shown.
+
+<div markdown="1" id="moverAdvancedOptions">
+Clean empty folders min depth
+: <select name='cleanFoldersMinDepth' size='1' class='narrow'>
+<?=mk_option($cfg['cleanFoldersMinDepth'],"1",'1')?>
+<?=mk_option($cfg['cleanFoldersMinDepth'],"2",'2')?>
+<?=mk_option($cfg['cleanFoldersMinDepth'],"3",'3')?>
+<?=mk_option($cfg['cleanFoldersMinDepth'],"4","4")?>
+</select>
+
+> This is the min depth below which Clean empty folder function won't do anything
+> By default it has a min depth of 2, for exeample: /mnt/*/share/dir1/dir2/dir3, it won't delete below dir3.
+> For a min depth of 4, for exeample: /mnt/*/share/dir1/dir2/dir3/dir4/dir5, it won't delete below dir5.
+> Also, you may 'touch .placeholder' at the end of a folder tree that shouldn't be removed.
+> For example: /mnt/*/share/dir1/dir2/dir3/dir4/.placeholder, won't delete dir 4 and below
+
+
+Rebalance shares:
+: <select name='rebalanceShares' size='1' class='narrow'>
+<?=mk_option($cfg['rebalanceShares'],"no",'No')?>
+<?=mk_option($cfg['rebalanceShares'],"yes","Yes")?>
+</select>
+
+> This will move files from shares to their primary and secondary storage if spread elsewhere. 
+> May imply moving older files from Primary->Secondary or Secondary->Primary if allowed (cache:prefer or cache:yes) to free some space. 
 
 Resynchronize all Primary files to Secondary:
 : <select name='resynchronizeCache' size='1' class='narrow'>

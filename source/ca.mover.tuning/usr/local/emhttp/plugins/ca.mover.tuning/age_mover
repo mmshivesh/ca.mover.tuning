@@ -202,6 +202,29 @@ getMoverSettings() {
         mvlogger "Before script: $BEFORESCRIPT"
     fi
 
+    if [ -z $(cfg cleanFolders) ]; then
+        if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+            mvlogger "No Clean folders argument provided, defaulting to no"
+            CLEANFOLDERS="no"
+            echo 'cleanFolders="no"' >> $config_file
+        fi
+    else
+        CLEANFOLDERS=$(cfg cleanFolders)
+        if [ $CLEANFOLDERS = "yes" ]; then
+            mvlogger "Clean Folders: $CLEANFOLDERS"
+            if [ -z $(cfg cleanFoldersMinDepth) ]; then
+                if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
+                    mvlogger "No Clean folders min depth argument provided, defaulting to 2"
+                    CLEANFOLDERMINDEPTH=2
+                    echo 'cleanFoldersMinDepth=2' >> $config_file
+                fi
+            else
+                CLEANFOLDERMINDEPTH=$(cfg cleanFoldersMinDepth)
+                mvlogger "Clean Folders: $CLEANFOLDERMINDEPTH"
+            fi
+        fi
+    fi
+
     if [ -z $(cfg ctime)  ]; then
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No CTIME argument provided, defaulting to no"
@@ -598,7 +621,9 @@ createFilteredFilelist (){
             echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_PATH_RESERVED_SPACE|0|0|0|/mnt/$PRIMARYSTORAGENAME/$SHARENAME hidden files" >>$FILTERED_FILELIST
             mvlogger "    Hidden files are using $(bytes_to_human $SKIPPED_PATH_RESERVED_SPACE)"
         fi
-
+        #Add skipped files and folders
+        FINDSTR+=" -not -name \".placeholder\"" #do not move placeholders
+        # Add files from ignore list
         if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ] ) && [ -f "$SKIPFILESLIST" ] && grep -q "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" "$SKIPFILESLIST"; then
             mvlogger "Skipping Files from List. File size are taken into account in the calculation of the threshold"
             mvlogger "List Path: ${SKIPFILESLIST}:"
@@ -1072,28 +1097,30 @@ processTheMoves () {
     done
 
     mvlogger "$(titleLine "Cleaning up" '-')"
-    while read SHARENAME; do 
-        if [ -e $SOFTSTOPFILE ]; then
-            [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
-            return
-        fi        
-        FINDSTR="find /mnt/*/$SHARENAME -not -path \"/mnt/user*\""
-        mvlogger "Deleting empty dirs in $SHARENAME..."
-            while IFS= read -r skipped_path; do
-                skipped_path="${skipped_path%/}"
-                if [ -d "$skipped_path" ]; then
-                    FINDSTR+=" -not -path \"${skipped_path}\"" 
-                fi                    
-            done <<< $(grep "$SHARENAME" "$SKIPFILESLIST")
-        FINDSTR+=" -type d -mindepth 2 -empty -print0 | xargs -0 "
-        if [ $TESTMODE = "no" ]; then
-            FINDSTR+=" rmdir -v"
-        else
-            FINDSTR+=" -I{} echo \"rmdir (dry-run): removing directory, {}\""
-        fi
-        eval "$FINDSTR"
-    done <<< $(grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq)
 
+    if [ $CLEANFOLDERS = "yes" ]; then
+        while read SHARENAME; do 
+            if [ -e $SOFTSTOPFILE ]; then
+                [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
+                return
+            fi        
+            FINDSTR="find /mnt/*/$SHARENAME -not -path \"/mnt/user*\""
+            mvlogger "Deleting empty dirs in $SHARENAME..."
+                while IFS= read -r skipped_path; do
+                    skipped_path="${skipped_path%/}"
+                    if [ -d "$skipped_path" ]; then
+                        FINDSTR+=" -not -path \"${skipped_path}\"" 
+                    fi                    
+                done <<< $(grep "$SHARENAME" "$SKIPFILESLIST")
+            FINDSTR+=" -type d -mindepth $CLEANFOLDERMINDEPTH -empty -print0 | xargs -0 "
+            if [ $TESTMODE = "no" ]; then
+                FINDSTR+=" rmdir -v"
+            else
+                FINDSTR+=" -I{} echo \"rmdir (dry-run): removing directory, {}\""
+            fi
+            eval "$FINDSTR"
+        done <<< $(grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq)
+    fi
 
     if [ $TESTMODE != "yes" ] && [ ! -e $SOFTSTOPFILE ] && grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
@@ -1114,8 +1141,9 @@ processTheMoves () {
 }
 
 start() {
+    [ $LOGLEVEL = 0 ] && echo "Starting Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE""
+
     mvlogger "$(titleLine "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)" '*')"
-    #mvlogger "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)"
     # Do not start if already running
     if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) | grep mover; then
             mvlogger "mover: already running"
@@ -1219,6 +1247,7 @@ start() {
     done
 
     mvlogger "$(titleLine 'WE ARE DONE !' '*')"
+    [ $LOGLEVEL = 0 ] && echo "Mover tuning plugin done!"
 }
 
 killtree() {
