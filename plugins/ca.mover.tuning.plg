@@ -15,6 +15,12 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="wrench" min="6.9.0-rc2">
 
 <CHANGES>
+###Next version
+- Better empty folder cleaner
+  - Rewritten to rmdir parent directory of a moved file if empty (drawbacks: will let multidirectory dirs  alive)
+  - Added option to enable/disable empty folder cleaner added in Settings UI
+  - UI improvements, settings sorted
+
 ###2024.08.15
 - Even better cache priming (hopefully) [R3yn4ld]
   - Rewriten Ignore filelist from file and filetypes filtering functions (major)

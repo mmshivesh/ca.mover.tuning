@@ -211,7 +211,7 @@ Move Now button follows plug-in filters:
 
 Only move if above this threshold of used Primary (cache) space:
 : <select name="movingThreshold" size="1" class='narrow'>
-<?for ($t=0;$t<100;$t+=5):?>
+<?for ($t=95;$t>0;$t-=5):?>
 <?=mk_option($cfg['movingThreshold'], $t, "$t %")?>
 <?endfor;?>
 </select>
@@ -390,9 +390,7 @@ Clean empty folders
 <?=mk_option($cfg['cleanFolders'],"yes","Yes")?>
 </select>
 
-> This will clean the folder of shares where files have been moved. 
-> This function will find empty folder (litteraly, empty, not any file, nor a .placeholder, inside) applying filter from ignore filelist if any.
-> By default it has a min depth of 2, for exeample: /mnt/*/share/dir1/dir2/dir3, it won't delete below dir3. See advanced option below.
+> This will clean the parent folder (only) of moved file. 
 
 Synchronize Primary files to Secondary
 : <select name='synchronizeCache' size='1' class='narrow'>
@@ -413,20 +411,6 @@ Show advanced options:
 > Show advanced options. Please note that these options are active if set even if not shown.
 
 <div markdown="1" id="moverAdvancedOptions">
-Clean empty folders min depth
-: <select name='cleanFoldersMinDepth' size='1' class='narrow'>
-<?=mk_option($cfg['cleanFoldersMinDepth'],"1",'1')?>
-<?=mk_option($cfg['cleanFoldersMinDepth'],"2",'2')?>
-<?=mk_option($cfg['cleanFoldersMinDepth'],"3",'3')?>
-<?=mk_option($cfg['cleanFoldersMinDepth'],"4","4")?>
-</select>
-
-> This is the min depth below which Clean empty folder function won't do anything
-> By default it has a min depth of 2, for exeample: /mnt/*/share/dir1/dir2/dir3, it won't delete below dir3.
-> For a min depth of 4, for exeample: /mnt/*/share/dir1/dir2/dir3/dir4/dir5, it won't delete below dir5.
-> Also, you may 'touch .placeholder' at the end of a folder tree that shouldn't be removed.
-> For example: /mnt/*/share/dir1/dir2/dir3/dir4/.placeholder, won't delete dir 4 and below
-
 
 Rebalance shares:
 : <select name='rebalanceShares' size='1' class='narrow'>

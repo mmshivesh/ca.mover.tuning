@@ -212,16 +212,6 @@ getMoverSettings() {
         CLEANFOLDERS=$(cfg cleanFolders)
         if [ $CLEANFOLDERS = "yes" ]; then
             mvlogger "Clean Folders: $CLEANFOLDERS"
-            if [ -z $(cfg cleanFoldersMinDepth) ]; then
-                if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
-                    mvlogger "No Clean folders min depth argument provided, defaulting to 2"
-                    CLEANFOLDERMINDEPTH=2
-                    echo 'cleanFoldersMinDepth=2' >> $config_file
-                fi
-            else
-                CLEANFOLDERMINDEPTH=$(cfg cleanFoldersMinDepth)
-                mvlogger "Clean Folders: $CLEANFOLDERMINDEPTH"
-            fi
         fi
     fi
 
@@ -1082,6 +1072,24 @@ processTheMoves () {
             # Perform rsync. relative paths and hardlinks
             eval "$RSYNC_CMD" "$SYNCED_FILES" "$DESTINATION/"
 
+            if [[ "$ACTION" =~ "move" ]] && [ $CLEANFOLDERS = "yes" ]; then
+                while IFS= read -r FILE; do
+                    DIR=$(dirname "$FILE")
+                    if [ -e "$DIR/.placeholder" ]; then
+                        count=".placeholder"
+                    else
+                        count=$(ls -A "$DIR" | wc -l)
+                    fi
+                    if [ "$count" = ".placeholder" ] || [ "$count" != 0 ]; then
+                        echo "Not deleting dir containing $count file$([ "$count" != ".placeholder" ] && echo "s"): ${DIR}"
+                    else
+                        echo "Deleting empty dir ${DIR}"
+                        if [ $TESTMODE = "no" ]; then
+                            rmdir "${DIR}"
+                        fi
+                    fi
+                done <<< $(echo "$SYNCED_FILES" | sed 's|/./|/|g' | xargs -n1 echo)
+            fi
             # Setting mover status
             if [[ "$SOURCE" =~ $PRIMARYSTORAGENAME ]]; then
                 REMAINING_CACHE_SIZE=$(($REMAINING_CACHE_SIZE - $FILESIZE))
@@ -1097,30 +1105,6 @@ processTheMoves () {
     done
 
     mvlogger "$(titleLine "Cleaning up" '-')"
-
-    if [ $CLEANFOLDERS = "yes" ]; then
-        while read SHARENAME; do 
-            if [ -e $SOFTSTOPFILE ]; then
-                [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
-                return
-            fi        
-            FINDSTR="find /mnt/*/$SHARENAME -not -path \"/mnt/user*\""
-            mvlogger "Deleting empty dirs in $SHARENAME..."
-                while IFS= read -r skipped_path; do
-                    skipped_path="${skipped_path%/}"
-                    if [ -d "$skipped_path" ]; then
-                        FINDSTR+=" -not -path \"${skipped_path}\"" 
-                    fi                    
-                done <<< $(grep "$SHARENAME" "$SKIPFILESLIST")
-            FINDSTR+=" -type d -mindepth $CLEANFOLDERMINDEPTH -empty -print0 | xargs -0 "
-            if [ $TESTMODE = "no" ]; then
-                FINDSTR+=" rmdir -v"
-            else
-                FINDSTR+=" -I{} echo \"rmdir (dry-run): removing directory, {}\""
-            fi
-            eval "$FINDSTR"
-        done <<< $(grep "|move"  $MOVER_ACTIONLIST | cut -d'|' -f2 | sort | uniq)
-    fi
 
     if [ $TESTMODE != "yes" ] && [ ! -e $SOFTSTOPFILE ] && grep -q "|sync from" $MOVER_ACTIONLIST ; then
         EPOCH=$(date --date="${NOW:0:4}-${NOW:5:2}-${NOW:8:2} ${NOW:11:2}:${NOW:13:2}:${NOW:15:2}" +%s)
@@ -1141,8 +1125,7 @@ processTheMoves () {
 }
 
 start() {
-    [ $LOGLEVEL = 0 ] && echo "Starting Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE""
-
+    [ $LOGLEVEL = 0 ] && echo "Starting Mover tuning plugin.."
     mvlogger "$(titleLine "Mover Tuning Plugin version $(grep "version=" "$MOVERTUNINGCFGFILE" | cut -d '"' -f 2)" '*')"
     # Do not start if already running
     if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) | grep mover; then
