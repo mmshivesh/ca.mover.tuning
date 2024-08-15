@@ -549,7 +549,7 @@ createFilteredFilelist (){
                     CACHESHARERESERVEDSPACE=$(zfs list -Hpo used $PRIMARYSTORAGENAME/$SHARENAME )
                 else
                     mvlogger "Calculating share usage... (can take a moment)"
-                    CACHESHARERESERVEDSPACE=$(du -sh $SHAREPATH | awk '{print $1}' | human_to_bytes)
+                    CACHESHARERESERVEDSPACE=$(du -sh "$SHAREPATH" | awk '{print $1}' | human_to_bytes)
                 fi
                 echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|only|9999999999|$PRIMARYSIZETHRESH|$CACHESHARERESERVEDSPACE|0|0|0|${SHAREPATH}" >>$FILTERED_FILELIST
                 mvlogger "$PRIMARYSTORAGENAME/$SHARENAME used: $(bytes_to_human $CACHESHARERESERVEDSPACE)"
@@ -623,21 +623,21 @@ createFilteredFilelist (){
                 skipped_path="${skipped_path%/}"  # Remove potential trailing slash
                 if [ -d "$skipped_path" ]; then
                     # Size calculation
-                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh $skipped_path | awk '{print $1}' | human_to_bytes)
+                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh "${skipped_path}" | awk '{print $1}' | human_to_bytes)
                     # Add /* at the end for better reading in Mover_action file
                     skipped_path="${skipped_path}/*" # add slash asterisk
                     # Add filter to find string
                     FINDSTR+=" -not -path \"${skipped_path}\"" 
                 elif [ -f "$skipped_path" ]; then
+                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh "${skipped_path}"  | awk '{print $1}'| human_to_bytes)
                     # Add filter to find string
                     FINDSTR+=" -not -name \"${skipped_path}\""
-                    SKIPPED_PATH_RESERVED_SPACE=$(du -sh ${skipped_path}  | awk '{print $1}')
-                fi                    
+                fi
                 if [ ! -z "$SKIPPED_PATH_RESERVED_SPACE" ]; then
-                    echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_PATH_RESERVED_SPACE|0|0|0|${skipped_path}" >> $FILTERED_FILELIST
-                    TOTAL_SKIPPED_PATH_RESERVED_SPACE=$((TOTAL_SKIPPED_PATH_RESERVED_SPACE + SKIPPED_PATH_RESERVED_SPACE))
-                else
-                    mvlogger "Error calculating size for $skipped_path"
+                        echo "$PRIMARYSTORAGENAME|$PRIMARYSTORAGENAME|$SHARENAME|skipped|9999999999|$PRIMARYSIZETHRESH|$SKIPPED_PATH_RESERVED_SPACE|0|0|0|${skipped_path}" >> $FILTERED_FILELIST
+                        TOTAL_SKIPPED_PATH_RESERVED_SPACE=$((TOTAL_SKIPPED_PATH_RESERVED_SPACE + SKIPPED_PATH_RESERVED_SPACE))
+                    else
+                        mvlogger "Error calculating size for $skipped_path"
                 fi
             done <<< $(grep "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" "$SKIPFILESLIST")
             mvlogger "    Ignored files are using $(bytes_to_human $TOTAL_SKIPPED_PATH_RESERVED_SPACE)"
