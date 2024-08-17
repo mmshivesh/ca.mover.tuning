@@ -49,6 +49,7 @@ TOTALUNATTENDEDFILES=0
 TOTALUNATTENDEDSIZE=0
 REMAININGUNATTENDEDFILES=0
 REMAININGUNATTENDEDSIZE=0
+overrideFlag=0
 
 NOW=$(date +"%FT%H%M%S")
 FILTERED_FILELIST="/tmp/ca.mover.tuning/Filtered_files_$NOW.list"
@@ -402,13 +403,15 @@ createFilteredFilelist (){
             [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
             return
         fi
-        overrideFlag=0
+
         globalSkipFileTypes=$SKIPFILETYPES
 
         #Gathering information
         #Sharename
         SHARENAME="$(basename "$SHARECFG" .cfg)"
+        # Share title line
         mvlogger "$(titleLine "Processing $SHARENAME share" '-')"
+
         #Check to see if this share has a mover settings override, if yes set overrideFlag and change settings
         if [ -f "/boot/config/plugins/ca.mover.tuning/shareOverrideConfig/$SHARENAME.cfg" ]; then
             SHARETUNINGFILE="/boot/config/plugins/ca.mover.tuning/shareOverrideConfig/$SHARENAME.cfg"
@@ -417,9 +420,18 @@ createFilteredFilelist (){
                 mvlogger  "Settings override:"
                 mvlogger  "------------------"
                 getMoverSettings $SHARETUNINGFILE
-                mvlogger "$(titleLine "" '-')"
+                mvlogger "------------------------------------------------------------------------"
             fi
+        elif [ $overrideFlag = 1 ]; then
+            #else if overrideFLag set from previous loop then restore global settings
+            overrideFlag=0
+            #Get Mover Tuning Settings
+            mvlogger "Restore global settings"
+            mvlogger "-----------------------"
+            getMoverSettings $MOVERTUNINGCFGFILE
+            mvlogger "------------------------------------------------------------------------"
         fi
+
         # Determine Cache mode
         SHAREUSECACHE=$(grep shareUseCache "$SHARECFG" | cut -d'=' -f 2 | tr -d '"' | tr -d '\r')
 
@@ -693,25 +705,17 @@ createFilteredFilelist (){
             eval "$FINDSTR>>$FILTERED_FILELIST"
             mvlogger "Updated Filtered filelist: $FILTERED_FILELIST for $SHARENAME"
         fi
-
-        #If overrideFLag set restore settings
-        if [ $overrideFlag = 1 ]; then
-            overrideFlag=0
-            #Get Mover Tuning Settings
-            mvlogger "$(titleLine "" '-')"
-            mvlogger "Restore global settings"
-            mvlogger "-----------------------"
-            getMoverSettings $MOVERTUNINGCFGFILE
-        fi
     done
 
     # Sort the file list by PRIMARYSTORAGENAME, shareusecache, creation/modification time, and inode, keeping /mnt/disk at the end
     sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
     # Need to remove duplicate (cache and array) 
     if grep -q "/mnt/disk" $FILTERED_FILELIST; then
-        mvlogger "Optimizing Filtered Filelist"
+        mvlogger "$(titleLine 'Optimizing Filtered Filelist' '-')"
         tempfile1=$(mktemp)
         tempfile2=$(mktemp)
+
+        mvlogger "Removing duplicate giving priority to cache"
         grep -v "/mnt/disk" $FILTERED_FILELIST > "$tempfile1"
         grep "/mnt/disk" $FILTERED_FILELIST > "$tempfile2"
         cat "$tempfile1" "$tempfile2" | awk -F"|" '
@@ -753,6 +757,7 @@ createFilteredFilelist (){
                     printf "%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
                 }
             }' > "$FILTERED_FILELIST"
+        mvlogger "Sorting"
         sort -t '|' -k1,1 -k4,4 -k5,5nr -k10,10 -o "$FILTERED_FILELIST" "$FILTERED_FILELIST"
         rm $tempfile1 $tempfile2
     fi
@@ -764,8 +769,20 @@ decideMoveActions () {
         return
     fi
 
-    ## Loop Filtered Filelist and for each file decide to move to/from the array
+    # Title line
     mvlogger "$(titleLine 'ANALYSING MOVING ACTIONS' '*')"
+
+    #If overrideFLag set restore settings
+    if [ $overrideFlag = 1 ]; then
+        overrideFlag=0
+        #Get Mover Tuning Settings
+        mvlogger "Restore global settings"
+        mvlogger "-----------------------"
+        getMoverSettings $MOVERTUNINGCFGFILE
+        mvlogger "------------------------------------------------------------------------"
+    fi
+
+    ## Loop Filtered Filelist and for each file decide to move to/from the array
     mvlogger "Deciding the action (move/sync/keep) for each file. There are $(grep "/mnt" $FILTERED_FILELIST | wc -l) files, it can take a while..."
 
     ## Proceed with files
@@ -1023,7 +1040,7 @@ processTheMoves () {
     # Ignore "grep '|keep on primary|' '$MOVER_ACTIONLIST'" action because it's not an action
 
     for GREP_CMD in "${GREP_CMDS[@]}"; do
-        eval $GREP_CMD | while IFS="|" read -r PRIMARYSTORAGENAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
+        while IFS="|" read -r PRIMARYSTORAGENAME SHARENAME SHAREUSECACHE MODIFICATIONTIME FILESIZE POOLSUM THRESHOLD NBLINKS INODE ACTION SOURCE DESTINATION FILEPATH; do
             if [ -e $SOFTSTOPFILE ]; then
                 [ $SOFTSTOP_ACK = true ] || mvlogger "Soft Stopping requested" && SOFTSTOP_ACK=true
                 return
@@ -1072,6 +1089,7 @@ processTheMoves () {
             # Perform rsync. relative paths and hardlinks
             eval "$RSYNC_CMD" "$SYNCED_FILES" "$DESTINATION/"
 
+            # Clean parent folder if empty
             if [[ "$ACTION" =~ "move" ]] && [ $CLEANFOLDERS = "yes" ]; then
                 while IFS= read -r FILE; do
                     DIR=$(dirname "$FILE")
@@ -1101,7 +1119,7 @@ processTheMoves () {
                 mvlogger "$REMAINING_ARRAY_FILES files remaining from array to caches $(bytes_to_human $REMAINING_ARRAY_SIZE)"
             fi
             moverStatusWrite
-        done
+        done <<< $(eval $GREP_CMD)
     done
 
     mvlogger "$(titleLine "Cleaning up" '-')"
