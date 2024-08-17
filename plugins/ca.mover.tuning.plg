@@ -2,13 +2,13 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.08.15.2118">
-<!ENTITY upgrade   "major">
-<!ENTITY md5       "8c74ce92a008f3a309f68a2692c57c6f">
+<!ENTITY version   "2024.08.17.1225">
+<!ENTITY md5       "bbf725f988e487d0ba96b94e43dd06d6">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
 <!ENTITY branch    "master">
+<!ENTITY upgrade   "minor">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/&github;/master/plugins/&name;.plg">
 ]>
 
@@ -17,7 +17,6 @@
 <CHANGES>
 ###2024.08.17
 - Fix settings override not reverting [R3yn4ld]
-
 
 ###2024.08.15
 - Fix ignore list reserved space double quoting (Thanks silver226) [R3yn4ld]
