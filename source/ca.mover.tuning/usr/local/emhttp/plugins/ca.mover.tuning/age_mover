@@ -1050,12 +1050,10 @@ processTheMoves () {
             if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
                 continue
             fi
-
             # Skip if ~blank~ line
-            if [ - z $ACTION ] || [ -Z $FILEPATH ]; then
+            if [ -z "$ACTION" ] || [ -z "$FILEPATH" ]; then
                 continue
             fi
-
             #Prepare RSYNC_CMD
             RSYNC_CMD="rsync --archive --xattrs --relative --hard-links"
 
