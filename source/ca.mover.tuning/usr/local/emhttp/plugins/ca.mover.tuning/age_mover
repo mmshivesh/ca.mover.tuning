@@ -1051,6 +1051,11 @@ processTheMoves () {
                 continue
             fi
 
+            # Skip if ~blank~ line
+            if [ - z $ACTION ] || [ -Z $FILEPATH ]; then
+                continue
+            fi
+
             #Prepare RSYNC_CMD
             RSYNC_CMD="rsync --archive --xattrs --relative --hard-links"
 
@@ -1080,9 +1085,6 @@ processTheMoves () {
                 # Some verbosity
                 GUI_ACTION="Synchronizing to $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
                 mvlogger "Synchronizing  $SYNCED_FILES to  $DESTINATION/ $([ $NBLINKS -gt 1 ] && echo '(preserving hardlinks)')"
-            else
-                mvlogger "Warning: no action for $FILEPATH"
-                continue
             fi
 
             moverStatusWrite
