@@ -1046,6 +1046,8 @@ processTheMoves () {
                 return
             fi
 
+            NBLINKS="${NBLINKS:-0}"
+
             # Skip filesize = 0 (hardlinks already handled in a previous loop)
             if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
                 continue
