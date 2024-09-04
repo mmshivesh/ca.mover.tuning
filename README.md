@@ -29,6 +29,10 @@ For each file, if the file is not "in use" by any process (as detected by 'fuser
 If an error occurs in copying a file, the partial file, if present, is deleted and the operation continues on to the next file.
 
 ## Changelog
+- 2024.09.05
+    - Add compatibility with unraid 7.x for share_mover ([R3yn4ld](https://github.com/R3yn4ld))
+    - [Fix "integer expression expected"](https://github.com/R3yn4ld/ca.mover.tuning/pull/63/commits) Thanks to: ([RonaldJerez](https://github.com/RonaldJerez)); and "0: command not found" bugs ([R3yn4ld](https://github.com/R3yn4ld))
+
 - 2024.08.18
     - [Fix blank grep to rsync loop causing "Warning no action for; integer expected; unary operator expected" errors](https://github.com/R3yn4ld/ca.mover.tuning/tree/Fix-no-action-for-blank-integer-unary) ([R3yn4ld](https://github.com/R3yn4ld))
 
