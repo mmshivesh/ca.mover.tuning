@@ -1047,11 +1047,7 @@ processTheMoves () {
             fi
 
             # Skip if ~blank~ line
-            if [ -z "$NBLINKS"] || [ -z "$FILESIZE" ] || [ -z "$ACTION" ] || [ -z "$FILEPATH" ]; then
-
-            # Skip filesize = 0 (hardlinks already handled in a previous loop)
-            NBLINKS="${NBLINKS:-0}"
-            if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
+            if [ -z "$NBLINKS" ] || [ -z "$FILESIZE" ] || [ -z "$ACTION" ] || [ -z "$FILEPATH" ]; then
                 continue
             fi
             # Skip filesize = 0 (hardlinks already handled in a previous loop)

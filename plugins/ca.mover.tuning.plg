@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "ca.mover.tuning">
 <!ENTITY author    "Reynald">
-<!ENTITY version   "2024.09.05.0044">
-<!ENTITY md5       "836a4115f7734bd31982e3fe1e0ff65e">
+<!ENTITY version   "2024.09.05.0115">
+<!ENTITY md5       "bc414626d6d097ac8c3d6a7e8ca73e60">
 <!ENTITY launch    "Settings/Scheduler">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "R3yn4ld/ca.mover.tuning">
@@ -17,7 +17,8 @@
 <CHANGES>
 ###2024.09.05
 - Add compatibility with unraid 7.x for share_mover [R3yn4ld]
-- Fix "integer expression expected" thanks to [RonaldJerez]; and "0: command not found" bugs [R3yn4ld]
+- Fix "integer expression expected" thanks to [RonaldJerez]
+- Fix "0: command not found" bugs [R3yn4ld]
 
 ###2024.08.18
 - Fix blank grep to rsync loop causing "Warning no action for; integer expected; unary operator expected" errors [R3yn4ld]
