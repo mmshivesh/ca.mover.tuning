@@ -1046,14 +1046,17 @@ processTheMoves () {
                 return
             fi
 
-            NBLINKS="${NBLINKS:-0}"
+            # Skip if ~blank~ line
+            if [ -z "$NBLINKS"] || [ -z "$FILESIZE" ] || [ -z "$ACTION" ] || [ -z "$FILEPATH" ]; then
 
             # Skip filesize = 0 (hardlinks already handled in a previous loop)
+            NBLINKS="${NBLINKS:-0}"
             if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
                 continue
             fi
-            # Skip if ~blank~ line
-            if [ -z "$ACTION" ] || [ -z "$FILEPATH" ]; then
+            # Skip filesize = 0 (hardlinks already handled in a previous loop)
+            NBLINKS="${NBLINKS:-0}"
+            if [ "$NBLINKS" -gt 1 ] && [ "$FILESIZE" = 0 ] ; then
                 continue
             fi
             #Prepare RSYNC_CMD
@@ -1230,7 +1233,7 @@ start() {
         if [ -f "$AFTERSCRIPT" ] && [ -x "$AFTERSCRIPT" ]; then
             mvlogger "Launching after script: $AFTERSCRIPT"
             eval \"$AFTERSCRIPT\"
-            mvlogger "After script finished with result: $( $? && "OK" || $?)"
+            mvlogger "After script finished with result: $( [ $? = 0 ] && echo "OK" || echo "$?")"
         else
             mvlogger "After script file $AFTERSCRIPT does not exist or is not executable."
             mvlogger "Skipping"
