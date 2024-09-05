@@ -273,11 +273,11 @@ getMoverSettings() {
         if [[ ! "$config_file" =~ shareOverrideConfig ]] ;then
             mvlogger "No Ignore Hidden Files argument provided, defaulting to no"
             echo 'ignoreHidden="no"' >> $config_file
-            HIDDENFILES="no"
+            IGNOREHIDDENFILES="no"
         fi
     else
-        HIDDENFILES=$(cfg ignoreHidden)
-        [ $HIDDENFILES = "yes" ] && mvlogger "Ignore Hidden Files: $HIDDENFILES"
+        IGNOREHIDDENFILES=$(cfg ignoreHidden)
+        [ $IGNOREHIDDENFILES = "yes" ] && mvlogger "Ignore Hidden Files: $IGNOREHIDDENFILES"
     fi
     
     if [ -z $(cfg rebalanceShares) ]; then
@@ -616,7 +616,7 @@ createFilteredFilelist (){
 
 
         #Add Ignore Hidden Files to find string
-        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ]) && [ "$HIDDENFILES" == "yes" ]; then
+        if ([ -z "$OMOVERTHRESH" ] || [ $POOLPCTUSED -le $OMOVERTHRESH ]) && ([ "$SHAREUSECACHE" = "prefer" ] || [ "$SHAREUSECACHE" = "yes" ]) && [ "$IGNOREHIDDENFILES" == "yes" ]; then
             mvlogger "Skipping Hidden Files. File size are taken into account in the calculation of the threshold"
             FINDSTR+=" -not -path '*/\.*'"
             HIDDENFILES_RESERVED_SPACE=$(find "/mnt/$PRIMARYSTORAGENAME/$SHARENAME" -type f -path '*/\.*' -print0 | xargs -0 du -sh | awk '{ sum += $1 } END { print sum }')
@@ -1201,7 +1201,7 @@ start() {
     find /tmp/ca.mover.tuning/* -size 0 -name '*.list' -delete
 
     #Let find find hidden files.
-    shopt -s nullglob
+    shopt -s nullglob dotglob
 
     #Run mover before script if specified.
     if [ ! -z "$BEFORESCRIPT" ] && [ ! -e $SOFTSTOPFILE ]; then
